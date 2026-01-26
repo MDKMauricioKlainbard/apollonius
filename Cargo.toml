@@ -2,6 +2,12 @@
 name = "apollonius"
 version = "0.0.1-alpha"
 edition = "2024"
+description = "A foundational geometry library for Rust, built with const generics."
+license = "MIT OR Apache-2.0"
+
+repository = "https://github.com/MDKMauricioKlainbard/apollonius"
+keywords = ["geometry", "vector", "point", "euclidean", "math"]
+categories = ["science", "algorithms", "data-structures", "mathematics"]
 
 [dependencies]
 num-traits = "0.2.19"
