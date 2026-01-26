@@ -1,5 +1,7 @@
 use num_traits::Float;
-use std::ops::{Mul, Sub};
+use std::ops::{Add, Mul, Sub};
+
+use crate::Vector;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<T, const N: usize> {
@@ -44,6 +46,15 @@ impl<T> From<(T, T, T)> for Point3D<T> {
     }
 }
 
+impl<T, const N: usize> From<Vector<T, N>> for Point<T, N> {
+    #[inline]
+    fn from(vector: Vector<T, N>) -> Self {
+        Self {
+            coords: vector.coords,
+        }
+    }
+}
+
 impl<T, const N: usize> MetricSquared<T> for Point<T, N>
 where
     T: Copy + Sub<Output = T> + Mul<Output = T> + std::iter::Sum,
@@ -68,6 +79,30 @@ where
     #[inline]
     fn distance(&self, other: &Self) -> T {
         self.distance_squared(other).sqrt()
+    }
+}
+
+impl<T, const N: usize> Sub for Point<T, N>
+where
+    T: Copy + Sub<Output = T>,
+{
+    type Output = Vector<T, N>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
+        Vector { coords }
+    }
+}
+
+impl<T, const N: usize> Add<Vector<T, N>> for Point<T, N>
+where
+    T: Copy + Add<Output = T>,
+{
+    type Output = Point<T, N>;
+
+    fn add(self, rhs: Vector<T, N>) -> Self::Output {
+        let coords = std::array::from_fn(|i| self.coords[i] + rhs.coords[i]);
+        Self { coords }
     }
 }
 
@@ -133,5 +168,23 @@ mod points_tests {
         println!("{:?}", p3);
         assert!(p3 == Point::new([1.0, 2.0]));
         assert!(p3 != Point::new([1.0, 3.0]));
+    }
+
+    #[test]
+    fn test_point_subtraction_to_vector() {
+        use super::super::Vector;
+
+        let p1 = Point::new([10.0_f64, 20.0, 30.0]);
+        let p2 = Point::new([15.0_f64, 25.0, 35.0]);
+
+        let v: Vector<f64, 3> = p2 - p1;
+        assert_relative_eq!(v.coords[0], 5.0);
+        assert_relative_eq!(v.coords[1], 5.0);
+        assert_relative_eq!(v.coords[2], 5.0);
+
+        let pi1 = Point::new([1, 2]);
+        let pi2 = Point::new([4, 6]);
+        let vi: Vector<i32, 2> = pi2 - pi1;
+        assert_eq!(vi.coords, [3, 4]);
     }
 }

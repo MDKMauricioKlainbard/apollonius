@@ -45,6 +45,18 @@ where
     }
 }
 
+impl<T, const N: usize> From<&Point<T, N>> for Vector<T, N>
+where
+    T: Sub<Output = T> + Copy,
+{
+    #[inline]
+    fn from(final_point: &Point<T, N>) -> Self {
+        Vector {
+            coords: final_point.coords,
+        }
+    }
+}
+
 impl<T> From<(T, T)> for Vector2D<T> {
     #[inline]
     fn from(value: (T, T)) -> Self {
