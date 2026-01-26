@@ -3,18 +3,33 @@ use std::ops::{Add, Mul, Sub};
 
 use crate::Vector;
 
+/// Represents a location in an N-dimensional affine space.
+///
+/// Unlike a vector, a point represents a fixed position and does not have
+/// direction or magnitude.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<T, const N: usize> {
     pub coords: [T; N],
 }
 
+/// A 2D point specialization.
 pub type Point2D<T> = Point<T, 2>;
+
+/// A 3D point specialization.
 pub type Point3D<T> = Point<T, 3>;
 
+/// Trait for types that can calculate the squared distance between each other.
+///
+/// Using squared distance is often preferred for performance-critical
+/// comparisons to avoid the computational cost of the square root.
 pub trait MetricSquared<T> {
+    /// Calculates the squared Euclidean distance between `self` and `other`.
     fn distance_squared(&self, other: &Self) -> T;
 }
+
+/// Trait for types that can calculate the actual Euclidean distance.
 pub trait EuclideanMetric<T>: MetricSquared<T> {
+    /// Calculates the Euclidean distance between `self` and `other`.
     fn distance(&self, other: &Self) -> T;
 }
 
@@ -22,6 +37,15 @@ impl<T, const N: usize> Point<T, N>
 where
     T: Copy,
 {
+    /// Creates a new Point from a fixed-size array of coordinates.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::Point;
+    ///
+    /// let p = Point::new([1.0, 2.0, 3.0]);
+    /// assert_eq!(p.coords, [1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
@@ -29,6 +53,15 @@ where
 }
 
 impl<T> From<(T, T)> for Point2D<T> {
+    /// Converts a 2-element tuple into a Point2D.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::Point2D;
+    ///
+    /// let p = Point2D::from((1.0, 2.0));
+    /// assert_eq!(p.coords, [1.0, 2.0]);
+    /// ```
     #[inline]
     fn from(tuple: (T, T)) -> Self {
         Self {
@@ -38,6 +71,7 @@ impl<T> From<(T, T)> for Point2D<T> {
 }
 
 impl<T> From<(T, T, T)> for Point3D<T> {
+    /// Converts a 3-element tuple into a Point3D.
     #[inline]
     fn from(tuple: (T, T, T)) -> Self {
         Self {
@@ -47,6 +81,7 @@ impl<T> From<(T, T, T)> for Point3D<T> {
 }
 
 impl<T, const N: usize> From<Vector<T, N>> for Point<T, N> {
+    /// Converts a Vector into a Point, assuming the vector starts at the origin.
     #[inline]
     fn from(vector: Vector<T, N>) -> Self {
         Self {
@@ -76,6 +111,16 @@ impl<T, const N: usize> EuclideanMetric<T> for Point<T, N>
 where
     T: Float + std::iter::Sum,
 {
+    /// Calculates Euclidean distance.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::{Point, EuclideanMetric};
+    ///
+    /// let p1 = Point::new([0.0, 0.0]);
+    /// let p2 = Point::new([3.0, 4.0]);
+    /// assert_eq!(p1.distance(&p2), 5.0);
+    /// ```
     #[inline]
     fn distance(&self, other: &Self) -> T {
         self.distance_squared(other).sqrt()
@@ -88,6 +133,18 @@ where
 {
     type Output = Vector<T, N>;
 
+    /// Subtracting two points yields a displacement Vector.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::{Point, Vector};
+    ///
+    /// let p1 = Point::new([10, 20]);
+    /// let p2 = Point::new([15, 25]);
+    /// let v = p2 - p1;
+    ///
+    /// assert_eq!(v.coords, [5, 5]);
+    /// ```
     fn sub(self, rhs: Self) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
         Vector { coords }
@@ -100,6 +157,18 @@ where
 {
     type Output = Point<T, N>;
 
+    /// Adding a Vector to a Point translates the point in space.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::{Point, Vector};
+    ///
+    /// let p = Point::new([1.0, 2.0]);
+    /// let v = Vector::new([3.0, 4.0]);
+    /// let p_prime = p + v;
+    ///
+    /// assert_eq!(p_prime.coords, [4.0, 6.0]);
+    /// ```
     fn add(self, rhs: Vector<T, N>) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] + rhs.coords[i]);
         Self { coords }
@@ -125,7 +194,6 @@ mod points_tests {
         let p3d: Point3D<f32> = Point3D::from((1.0, 2.0, 3.0));
         assert_eq!(p3d.coords, [1.0, 2.0, 3.0]);
 
-        // Type aliases funcionan
         let alias_2d: Point2D<f64> = Point::new([1.0, 2.0]);
         assert_eq!(alias_2d.coords, [1.0, 2.0]);
     }
@@ -135,16 +203,11 @@ mod points_tests {
         let p1 = Point::new([0.0_f32, 0.0, 0.0]);
         let p2 = Point::new([3.0, 4.0, 0.0]);
 
-        // distance_squared (3^2 + 4^2 + 0^2 = 25)
         assert_relative_eq!(p1.distance_squared(&p2), 25.0);
-        // distance (sqrt(25) = 5)
         assert_relative_eq!(p1.distance(&p2), 5.0);
 
-        // Distancia a sí mismo debe ser 0
         assert_relative_eq!(p1.distance_squared(&p1), 0.0);
         assert_relative_eq!(p1.distance(&p1), 0.0);
-
-        // Probando con f64
         let p1_f64 = Point::new([0.0_f64, 0.0]);
         let p2_f64 = Point::new([1.0, 1.0]);
         assert_relative_eq!(p1_f64.distance(&p2_f64), 2.0_f64.sqrt());

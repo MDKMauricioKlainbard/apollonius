@@ -1,7 +1,7 @@
-mod points;
-mod vectors;
-mod primitives;
+pub mod points;
+pub mod primitives;
+pub mod vectors;
 
 pub use crate::points::{EuclideanMetric, MetricSquared, Point, Point2D, Point3D};
+pub use crate::primitives::{SpatialRelation, line::Line};
 pub use crate::vectors::{EuclideanVector, Vector, Vector2D, Vector3D, VectorMetricSquared};
-pub use crate::primitives::line::{Line};

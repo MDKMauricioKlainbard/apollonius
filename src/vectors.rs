@@ -1,33 +1,62 @@
+use crate::Point;
+use num_traits::Float;
 use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 
-use num_traits::Float;
-
-use crate::Point;
-
+/// Trait for types that can calculate squared magnitude and dot products.
+///
+/// These operations are valid for any type that supports multiplication,
+/// addition, and summation, including integers.
 pub trait VectorMetricSquared<T> {
+    /// Calculates the squared magnitude (squared norm) of the vector.
     fn magnitude_squared(&self) -> T;
+
+    /// Calculates the dot product between two vectors.
     fn dot(&self, other: &Self) -> T;
 }
+
+/// Trait for types that support Euclidean operations like magnitude and normalization.
+///
+/// These operations generally require floating-point numbers due to the square root.
 pub trait EuclideanVector<T>: VectorMetricSquared<T>
 where
     Self: Sized,
 {
+    /// Calculates the Euclidean magnitude (norm) of the vector.
     fn magnitude(&self) -> T;
+
+    /// Returns a normalized version of the vector (unit vector).
+    ///
+    /// Returns None if the magnitude is zero or near epsilon.
     fn normalize(&self) -> Option<Self>;
 }
 
+/// Represents a displacement in N-dimensional space.
+///
+/// Vectors represent relative direction and magnitude, distinct from
+/// points which represent absolute positions.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector<T, const N: usize> {
     pub coords: [T; N],
 }
 
+/// A 2D vector specialization.
 pub type Vector2D<T> = Vector<T, 2>;
+
+/// A 3D vector specialization.
 pub type Vector3D<T> = Vector<T, 3>;
 
 impl<T, const N: usize> Vector<T, N>
 where
     T: Copy,
 {
+    /// Creates a new Vector from an array of coordinates.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::Vector;
+    /// let v = Vector::new([1.0, 0.0, -1.0]);
+    /// assert_eq!(v.coords, [1.0, 0.0, -1.0]);
+    /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
@@ -38,6 +67,16 @@ impl<T, const N: usize> From<(&Point<T, N>, &Point<T, N>)> for Vector<T, N>
 where
     T: Sub<Output = T> + Copy,
 {
+    /// Creates a vector that represents the displacement from initial to final_point.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::{Point, Vector};
+    /// let p1 = Point::new([1, 1]);
+    /// let p2 = Point::new([4, 5]);
+    /// let v = p2 - p1;
+    /// assert_eq!(v.coords, [3, 4]);
+    /// ```
     #[inline]
     fn from((initial, final_point): (&Point<T, N>, &Point<T, N>)) -> Self {
         let coords = std::array::from_fn(|i| final_point.coords[i] - initial.coords[i]);
@@ -49,6 +88,7 @@ impl<T, const N: usize> From<&Point<T, N>> for Vector<T, N>
 where
     T: Sub<Output = T> + Copy,
 {
+    /// Converts a reference to a Point into a Vector relative to the origin.
     #[inline]
     fn from(final_point: &Point<T, N>) -> Self {
         Vector {
@@ -79,6 +119,7 @@ where
 {
     type Output = Vector<T, N>;
 
+    /// Performs vector addition.
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] + rhs.coords[i]);
@@ -92,6 +133,7 @@ where
 {
     type Output = Vector<T, N>;
 
+    /// Performs vector subtraction.
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
@@ -105,6 +147,14 @@ where
 {
     type Output = Vector<T, N>;
 
+    /// Performs scalar multiplication (Vector * Scalar).
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::Vector;
+    /// let v = Vector::new([1.0, 2.0]) * 2.0;
+    /// assert_eq!(v.coords, [2.0, 4.0]);
+    /// ```
     #[inline]
     fn mul(self, scalar: T) -> Self::Output {
         let coords = self.coords.map(|coord| coord * scalar);
@@ -140,6 +190,7 @@ where
 
 impl<const N: usize> Mul<Vector<f32, N>> for f32 {
     type Output = Vector<f32, N>;
+    /// Scalar multiplication (Scalar * Vector) for f32.
     #[inline]
     fn mul(self, vector: Vector<f32, N>) -> Vector<f32, N> {
         vector * self
@@ -148,6 +199,7 @@ impl<const N: usize> Mul<Vector<f32, N>> for f32 {
 
 impl<const N: usize> Mul<Vector<f64, N>> for f64 {
     type Output = Vector<f64, N>;
+    /// Scalar multiplication (Scalar * Vector) for f64.
     #[inline]
     fn mul(self, vector: Vector<f64, N>) -> Vector<f64, N> {
         vector * self
@@ -163,6 +215,15 @@ where
         self.coords.iter().map(|coord| *coord * *coord).sum()
     }
 
+    /// Calculates the dot product.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::{Vector, VectorMetricSquared};
+    /// let v1 = Vector::new([1, 2]);
+    /// let v2 = Vector::new([3, 4]);
+    /// assert_eq!(v1.dot(&v2), 11); // (1*3) + (2*4) = 11
+    /// ```
     #[inline]
     fn dot(&self, other: &Self) -> T {
         self.coords
@@ -182,6 +243,7 @@ where
         self.magnitude_squared().sqrt()
     }
 
+    /// Normalizes the vector. Returns None if magnitude is near zero.
     #[inline]
     fn normalize(&self) -> Option<Self> {
         let mag = self.magnitude();
@@ -197,6 +259,16 @@ impl<T> Vector<T, 3>
 where
     T: Copy + Mul<Output = T> + Sub<Output = T>,
 {
+    /// Calculates the cross product (only for 3D vectors).
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::Vector3D;
+    /// let v1 = Vector3D::from((1, 0, 0));
+    /// let v2 = Vector3D::from((0, 1, 0));
+    /// let cross = v1.cross(&v2);
+    /// assert_eq!(cross.coords, [0, 0, 1]);
+    /// ```
     #[inline]
     pub fn cross(&self, other: &Self) -> Self {
         let [x1, y1, z1] = self.coords;
