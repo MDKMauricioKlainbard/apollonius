@@ -1,7 +1,8 @@
+pub mod hypersphere;
 pub mod line;
 pub mod segment;
 
-use crate::{EuclideanVector, Point};
+use crate::{EuclideanVector, Point, VectorMetricSquared};
 use num_traits::Float;
 
 /// Defines spatial queries for geometric entities in N-dimensional space.
@@ -29,5 +30,22 @@ pub trait SpatialRelation<T, const N: usize> {
         T: Float + std::iter::Sum,
     {
         (self.closest_point(p) - *p).magnitude()
+    }
+
+    /// Check if a point lies on the boundary/structure of the entity.
+    fn contains(&self, point: &Point<T, N>) -> bool
+    where
+        T: Float + std::iter::Sum,
+    {
+        (self.closest_point(point) - *point).magnitude_squared() <= T::epsilon()
+    }
+
+    /// Check if a point is within the volume or area defined by the entity.
+    /// For 1D entities (Line, Segment), this defaults to `contains`.
+    fn is_inside(&self, point: &Point<T, N>) -> bool
+    where
+        T: Float + std::iter::Sum,
+    {
+        self.contains(point)
     }
 }

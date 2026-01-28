@@ -4,19 +4,20 @@ use std::ops::{Mul, Sub};
 
 /// A finite line segment in N-dimensional space defined by two endpoints.
 ///
-/// The segment pre-calculates its displacement vector (delta) to optimize
-/// frequent spatial queries and metric calculations.
+/// The segment pre-calculates its displacement vector (delta) and squared
+/// magnitude to optimize frequent spatial queries and metric calculations.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Segment<T, const N: usize> {
     start: Point<T, N>,
     end: Point<T, N>,
     delta: Vector<T, N>,
+    mag_sq: T, // Cached value for optimization
 }
 
 // Basic implementation for construction and data integrity
 impl<T, const N: usize> Segment<T, N>
 where
-    T: Copy + Sub<Output = T>,
+    T: Copy + Sub<Output = T> + Mul<Output = T> + std::iter::Sum,
 {
     /// Creates a new Segment from two points.
     ///
@@ -30,7 +31,13 @@ where
     #[inline]
     pub fn new(start: Point<T, N>, end: Point<T, N>) -> Self {
         let delta = end - start;
-        Self { start, end, delta }
+        let mag_sq = delta.magnitude_squared();
+        Self {
+            start,
+            end,
+            delta,
+            mag_sq,
+        }
     }
 
     /// Returns the start point of the segment.
@@ -49,26 +56,20 @@ where
     pub fn set_start(&mut self, new_start: Point<T, N>) {
         self.start = new_start;
         self.delta = self.end - self.start;
+        self.mag_sq = self.delta.magnitude_squared();
     }
 
     /// Updates the end point and synchronizes the internal state.
     pub fn set_end(&mut self, new_end: Point<T, N>) {
         self.end = new_end;
         self.delta = self.end - self.start;
+        self.mag_sq = self.delta.magnitude_squared();
     }
-}
 
-// Metrics implementation for types that support basic arithmetic
-impl<T, const N: usize> Segment<T, N>
-where
-    T: Copy + Sub<Output = T> + Mul<Output = T> + std::iter::Sum,
-{
-    /// Returns the squared length of the segment.
-    ///
-    /// This is more efficient than length() as it avoids a square root operation.
+    /// Returns the cached squared length of the segment.
     #[inline]
     pub fn length_squared(&self) -> T {
-        self.delta.magnitude_squared()
+        self.mag_sq
     }
 }
 
@@ -202,5 +203,63 @@ mod tests {
 
         let query = Point::new([5.0, 5.0]);
         assert_eq!(seg.closest_point(&query), p);
+    }
+
+    #[test]
+    fn test_segment_contains_midpoint() {
+        let start = Point::new([0.0, 0.0]);
+        let end = Point::new([10.0, 0.0]);
+        let segment = Segment::new(start, end);
+
+        let midpoint = Point::new([5.0, 0.0]);
+
+        assert!(
+            segment.contains(&midpoint),
+            "The midpoint should be contained within the segment"
+        );
+    }
+
+    #[test]
+    fn test_segment_contains_endpoints() {
+        let start = Point::new([0.0, 0.0]);
+        let end = Point::new([10.0, 10.0]);
+        let segment = Segment::new(start, end);
+
+        assert!(
+            segment.contains(&start),
+            "The start point is part of the segment"
+        );
+        assert!(
+            segment.contains(&end),
+            "The end point is part of the segment"
+        );
+    }
+
+    #[test]
+    fn test_segment_excludes_collinear_point_outside() {
+        let start = Point::new([0.0, 0.0]);
+        let end = Point::new([10.0, 0.0]);
+        let segment = Segment::new(start, end);
+
+        let outside_point = Point::new([11.0, 0.0]); // Collinear but out of range
+
+        assert!(
+            !segment.contains(&outside_point),
+            "A collinear but distant point should NOT be contained"
+        );
+    }
+
+    #[test]
+    fn test_segment_excludes_point_off_line() {
+        let start = Point::new([0.0, 0.0]);
+        let end = Point::new([10.0, 0.0]);
+        let segment = Segment::new(start, end);
+
+        let off_point = Point::new([5.0, 1.0]); // "Above" the segment
+
+        assert!(
+            !segment.contains(&off_point),
+            "A point off the line should not be contained"
+        );
     }
 }

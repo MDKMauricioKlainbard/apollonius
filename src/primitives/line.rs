@@ -111,4 +111,50 @@ mod test {
 
         assert_relative_eq!(line.distance_to_point(&p), 10.0);
     }
+
+    #[test]
+    fn test_line_contains_points_between_references() {
+        let p1 = Point::new([0.0, 0.0]);
+        let p2 = Point::new([10.0, 0.0]);
+        let line = Line::new(p1, p2 - p1); // The line passes through these two points
+
+        let mid = Point::new([5.0, 0.0]);
+        assert!(
+            line.contains(&mid),
+            "Points between the reference points should be contained"
+        );
+    }
+
+    #[test]
+    fn test_line_contains_points_to_infinity() {
+        let p1 = Point::new([0.0, 0.0]);
+        let p2 = Point::new([1.0, 1.0]); // 45-degree diagonal
+        let line = Line::new(p1, p2 - p1);
+
+        // Very distant points in both directions
+        let far_positive = Point::new([1000.0, 1000.0]);
+        let far_negative = Point::new([-500.0, -500.0]);
+
+        assert!(
+            line.contains(&far_positive),
+            "The line extends infinitely forward"
+        );
+        assert!(
+            line.contains(&far_negative),
+            "The line extends infinitely backward"
+        );
+    }
+
+    #[test]
+    fn test_line_excludes_non_collinear() {
+        let p1 = Point::new([0.0, 0.0]);
+        let p2 = Point::new([10.0, 0.0]); // X-axis
+        let line = Line::new(p1, p2 - p1);
+
+        let off = Point::new([5.0, 0.1]); // Slightly offset
+        assert!(
+            !line.contains(&off),
+            "A point not collinear with the line should be excluded"
+        );
+    }
 }
