@@ -175,6 +175,30 @@ where
     }
 }
 
+impl<T, const N: usize> Sub<Vector<T, N>> for Point<T, N>
+where
+    T: Copy + Sub<Output = T>,
+{
+    type Output = Point<T, N>;
+
+    /// Substracting a Vector to a Point translates the point in space.
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::{Point, Vector};
+    ///
+    /// let p = Point::new([1.0, 2.0]);
+    /// let v = Vector::new([3.0, 4.0]);
+    /// let p_prime = p - v;
+    ///
+    /// assert_eq!(p_prime.coords, [-2.0, -2.0]);
+    /// ```
+    fn sub(self, rhs: Vector<T, N>) -> Self::Output {
+        let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
+        Self { coords }
+    }
+}
+
 #[cfg(test)]
 mod points_tests {
     use super::*;

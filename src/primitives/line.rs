@@ -1,4 +1,7 @@
-use crate::{EuclideanVector, Point, SpatialRelation, Vector, VectorMetricSquared};
+use crate::{
+    EuclideanVector, FloatSign, Hypersphere, IntersectionResult, Point, SpatialRelation, Vector,
+    VectorMetricSquared, classify_to_zero,
+};
 use num_traits::Float;
 
 /// Represents an infinite line in N-dimensional space.
@@ -47,6 +50,22 @@ where
     /// ```
     pub fn at(&self, t: T) -> Point<T, N> {
         self.origin + self.direction * t
+    }
+
+    pub fn intersect_sphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
+        let pc = self.closest_point(&sphere.center);
+        let dist_sq = (pc - sphere.center).magnitude_squared();
+        let r_sq = sphere.radius * sphere.radius;
+        let diff = r_sq - dist_sq;
+
+        match classify_to_zero(diff, None) {
+            FloatSign::Negative => IntersectionResult::None,
+            FloatSign::Zero => IntersectionResult::Tangent(pc),
+            FloatSign::Positive => {
+                let h = diff.sqrt();
+                IntersectionResult::Secant(pc - self.direction * h, pc + self.direction * h)
+            }
+        }
     }
 }
 
@@ -156,5 +175,70 @@ mod test {
             !line.contains(&off),
             "A point not collinear with the line should be excluded"
         );
+    }
+
+    #[test]
+    fn test_line_sphere_no_intersection() {
+        let line = Line::new(Point::new([0.0, 11.0]), Vector::new([1.0, 0.0]));
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 10.0);
+
+        match line.intersect_sphere(&sphere) {
+            IntersectionResult::None => {}
+            _ => panic!("Should not intersect: line is outside the radius"),
+        }
+    }
+
+    #[test]
+    fn test_line_sphere_tangent() {
+        // Line passes exactly at y = 10, touching the sphere at (0, 10)
+        let line = Line::new(Point::new([-5.0, 10.0]), Vector::new([1.0, 0.0]));
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 10.0);
+
+        if let IntersectionResult::Tangent(p) = line.intersect_sphere(&sphere) {
+            assert_relative_eq!(p.coords[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords[1], 10.0, epsilon = 1e-6);
+        } else {
+            panic!("Expected tangent intersection at (0, 10)");
+        }
+    }
+
+    #[test]
+    fn test_line_sphere_secant_centered() {
+        // Line passes through the center along X axis
+        let line = Line::new(Point::new([-20.0, 0.0]), Vector::new([1.0, 0.0]));
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 10.0);
+
+        if let IntersectionResult::Secant(p1, p2) = line.intersect_sphere(&sphere) {
+            // We expect (-10, 0) and (10, 0)
+            let (min_x, max_x) = if p1.coords[0] < p2.coords[0] {
+                (p1.coords[0], p2.coords[0])
+            } else {
+                (p2.coords[0], p1.coords[0])
+            };
+            assert_relative_eq!(min_x, -10.0, epsilon = 1e-6);
+            assert_relative_eq!(max_x, 10.0, epsilon = 1e-6);
+        } else {
+            panic!("Expected two intersection points at -10 and 10");
+        }
+    }
+
+    #[test]
+    fn test_line_sphere_secant_off_center() {
+        // Vertical line at x = 3, sphere radius 5 at origin
+        // Intersection should be at y = sqrt(5^2 - 3^2) = 4
+        let line = Line::new(Point::new([3.0, 0.0]), Vector::new([0.0, 1.0]));
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+
+        if let IntersectionResult::Secant(p1, p2) = line.intersect_sphere(&sphere) {
+            let (min_y, max_y) = if p1.coords[1] < p2.coords[1] {
+                (p1.coords[1], p2.coords[1])
+            } else {
+                (p2.coords[1], p1.coords[1])
+            };
+            assert_relative_eq!(min_y, -4.0, epsilon = 1e-6);
+            assert_relative_eq!(max_y, 4.0, epsilon = 1e-6);
+        } else {
+            panic!("Expected secant points at y = -4 and y = 4");
+        }
     }
 }

@@ -1,4 +1,7 @@
-use crate::{EuclideanVector, Point, SpatialRelation, Vector, VectorMetricSquared};
+use crate::{
+    EuclideanVector, FloatSign, Hypersphere, IntersectionResult, Point, SpatialRelation, Vector,
+    VectorMetricSquared, classify_to_zero,
+};
 use num_traits::Float;
 use std::ops::{Mul, Sub};
 
@@ -106,6 +109,73 @@ where
     #[inline]
     pub fn at(&self, t: T) -> Point<T, N> {
         self.start + self.delta * t
+    }
+
+    /// Internal helper to find the parameter t for a point p known to be on the line of the segment.
+    fn get_t(&self, p: Point<T, N>) -> T {
+        if self.mag_sq <= T::zero() {
+            return T::zero();
+        }
+        (p - self.start).dot(&self.delta) / self.mag_sq
+    }
+
+    /// Calculates the intersection points between this segment and a hypersphere.
+    ///
+    /// This method uses a geometric approach:
+    /// 1. Projects the sphere's center onto the infinite line containing the segment.
+    /// 2. Calculates the orthogonal distance to determine if an intersection exists.
+    /// 3. If it exists, calculates the potential intersection points on the line.
+    /// 4. Filters the points to return only those within the segment's [0, 1] range.
+    ///
+    /// The distinction between `Tangent`, `Secant`, and `Single` allows for precise
+    /// physical responses (e.g., bounces vs. boundary crossings).
+    pub fn intersect_sphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
+        let mag_sq = self.length_squared();
+        if mag_sq <= T::zero() {
+            return IntersectionResult::None;
+        }
+
+        // 1. Orthogonal projection onto the infinite line (unclamped)
+        let t_line = (sphere.center - self.start).dot(&self.delta) / mag_sq;
+        let pc = self.at(t_line);
+
+        // 2. Orthogonal distance to the line
+        let dist_sq = (pc - sphere.center).magnitude_squared();
+        let r_sq = sphere.radius * sphere.radius;
+        let diff = r_sq - dist_sq;
+
+        match classify_to_zero(diff, None) {
+            FloatSign::Negative => IntersectionResult::None,
+            FloatSign::Zero => {
+                // Check if the tangent point is within segment bounds
+                if t_line >= -T::epsilon() && t_line <= T::one() + T::epsilon() {
+                    IntersectionResult::Tangent(pc)
+                } else {
+                    IntersectionResult::None
+                }
+            }
+            FloatSign::Positive => {
+                let h = diff.sqrt(); // Half-chord length
+                let dir = self.direction().unwrap_or(self.delta);
+
+                let p1 = pc - dir * h;
+                let p2 = pc + dir * h;
+
+                // Obtain parameters t for filtering
+                let t1 = self.get_t(p1);
+                let t2 = self.get_t(p2);
+
+                let v1 = t1 >= -T::epsilon() && t1 <= T::one() + T::epsilon();
+                let v2 = t2 >= -T::epsilon() && t2 <= T::one() + T::epsilon();
+
+                match (v1, v2) {
+                    (true, true) => IntersectionResult::Secant(p1, p2),
+                    (true, false) => IntersectionResult::Single(p1),
+                    (false, true) => IntersectionResult::Single(p2),
+                    (false, false) => IntersectionResult::None,
+                }
+            }
+        }
     }
 }
 
@@ -261,5 +331,93 @@ mod tests {
             !segment.contains(&off_point),
             "A point off the line should not be contained"
         );
+    }
+
+    #[test]
+    fn test_segment_sphere_no_intersection() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        let seg = Segment::new(Point::new([6.0, 0.0]), Point::new([10.0, 0.0]));
+
+        assert!(matches!(
+            seg.intersect_sphere(&sphere),
+            IntersectionResult::None
+        ));
+    }
+
+    #[test]
+    fn test_segment_entirely_inside_sphere() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 10.0);
+        let seg = Segment::new(Point::new([-2.0, 0.0]), Point::new([2.0, 0.0]));
+
+        // No intersection with the BOUNDARY
+        assert!(matches!(
+            seg.intersect_sphere(&sphere),
+            IntersectionResult::None
+        ));
+    }
+
+    #[test]
+    fn test_segment_piercing_one_side() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        // Starts inside (0,0), ends outside (10,0) -> Should hit boundary at (5,0)
+        let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
+
+        if let IntersectionResult::Single(p) = seg.intersect_sphere(&sphere) {
+            assert_relative_eq!(p.coords[0], 5.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords[1], 0.0, epsilon = 1e-6);
+        } else {
+            panic!("Expected single intersection point at (5, 0)");
+        }
+    }
+
+    #[test]
+    fn test_segment_piercing_both_sides() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        let seg = Segment::new(Point::new([-10.0, 0.0]), Point::new([10.0, 0.0]));
+
+        if let IntersectionResult::Secant(p1, p2) = seg.intersect_sphere(&sphere) {
+            let x1 = p1.coords[0];
+            let x2 = p2.coords[0];
+            assert!((x1.abs() - 5.0).abs() < 1e-6);
+            assert!((x2.abs() - 5.0).abs() < 1e-6);
+            assert!((x1 - x2).abs() > 9.0); // Points are far apart
+        } else {
+            panic!("Expected two intersection points at -5 and 5");
+        }
+    }
+
+    #[test]
+    fn test_segment_tangent_within_bounds() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        let seg = Segment::new(Point::new([-10.0, 5.0]), Point::new([10.0, 5.0]));
+
+        if let IntersectionResult::Tangent(p) = seg.intersect_sphere(&sphere) {
+            assert_relative_eq!(p.coords[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords[1], 5.0, epsilon = 1e-6);
+        } else {
+            panic!("Expected tangent intersection at (0, 5)");
+        }
+    }
+
+    #[test]
+    fn test_segment_sphere_broken_by_clamping() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        // Segment starts inside the sphere's X-range of intersection but the
+        // orthogonal projection (0, 1) is outside the segment [4, 10].
+        let seg = Segment::new(Point::new([4.0, 1.0]), Point::new([10.0, 1.0]));
+
+        if let IntersectionResult::Single(p) = seg.intersect_sphere(&sphere) {
+            // The real intersection is at x = sqrt(r^2 - y^2) = sqrt(25 - 1) = sqrt(24)
+            let expected_x = 24.0f64.sqrt();
+
+            assert_relative_eq!(p.coords[0], expected_x, epsilon = 1e-6);
+            assert_relative_eq!(p.coords[1], 1.0, epsilon = 1e-6);
+
+            // CRITICAL CHECK: The point must actually be on the sphere surface
+            let dist_to_center = (p - sphere.center).magnitude();
+            assert_relative_eq!(dist_to_center, 5.0, epsilon = 1e-6);
+        } else {
+            panic!("Should have found a Single intersection at x ≈ 4.898");
+        }
     }
 }

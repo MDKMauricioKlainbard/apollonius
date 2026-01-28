@@ -1,4 +1,7 @@
-use crate::{EuclideanVector, Point, SpatialRelation, Vector, VectorMetricSquared};
+use crate::{
+    EuclideanVector, FloatSign, IntersectionResult, Line, Point, Segment, SpatialRelation, Vector,
+    VectorMetricSquared, classify_to_zero,
+};
 use num_traits::Float;
 
 /// An N-dimensional hypersphere defined by a center point and a radius.
@@ -54,12 +57,15 @@ where
 
     /// Checks if a point `p` lies exactly on the hypersphere's boundary (surface).
     ///
-    /// This method uses `T::epsilon()` to account for floating-point inaccuracies.
+    /// This method uses `classify_to_zero` to account for floating-point inaccuracies.
     /// Points strictly inside or outside the surface will return `false`.
     fn contains(&self, p: &Point<T, N>) -> bool {
         let dist_sq = (*p - self.center).magnitude_squared();
         let radius_sq = self.radius * self.radius;
-        (dist_sq - radius_sq).abs() <= T::epsilon()
+        match classify_to_zero((dist_sq - radius_sq).abs(), None) {
+            FloatSign::Zero => true,
+            _ => false,
+        }
     }
 
     /// Checks if a point `p` is contained within the hypersphere's volume.
@@ -68,7 +74,16 @@ where
     /// equal to the radius (including the boundary).
     fn is_inside(&self, p: &Point<T, N>) -> bool {
         let dist_sq = (*p - self.center).magnitude_squared();
-        dist_sq <= self.radius * self.radius + T::epsilon()
+        let radius_sq = self.radius * self.radius;
+
+        // diff = distance^2 - radius^2
+        // If Negative: inside volume
+        // If Zero: on boundary
+        // If Positive: outside
+        match classify_to_zero(dist_sq - radius_sq, None) {
+            FloatSign::Positive => false,
+            _ => true,
+        }
     }
 }
 
@@ -82,6 +97,24 @@ where
     #[inline]
     pub fn project(&self, p: &Point<T, N>) -> Point<T, N> {
         self.closest_point(&p)
+    }
+
+    /// Computes the intersection(s) between this hypersphere and an infinite line.
+    ///
+    /// This is a convenience method that delegates the geometric calculation to
+    /// [`Line::intersect_sphere`].
+    #[inline]
+    pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
+        line.intersect_sphere(self)
+    }
+
+    /// Computes the intersection(s) between this hypersphere and a finite line segment.
+    ///
+    /// This is a convenience method that delegates the geometric calculation to
+    /// [`Segment::intersect_sphere`].
+    #[inline]
+    pub fn intersect_segment(&self, segment: &Segment<T, N>) -> IntersectionResult<T, N> {
+        segment.intersect_sphere(self)
     }
 }
 
@@ -200,5 +233,37 @@ mod tests {
         // Fallback should project towards positive X-axis
         assert_relative_eq!(projected.coords[0], 10.0, epsilon = 1e-6);
         assert_relative_eq!(projected.coords[1], 0.0, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_sphere_line_secant_diagonal() {
+        // Sphere at (0,0) radius 5
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        // Diagonal line y = x (normalized direction is [0.707, 0.707])
+        let line = Line::new(Point::new([0.0, 0.0]), Vector::new([1.0, 1.0]));
+
+        if let IntersectionResult::Secant(p1, p2) = sphere.intersect_line(&line) {
+            // Points should be at distance 5 from origin: 5 * cos(45) = 3.5355...
+            let expected = 5.0 / 2.0f64.sqrt();
+            assert_relative_eq!(p1.coords[0].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p1.coords[1].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p2.coords[0].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p2.coords[1].abs(), expected, epsilon = 1e-6);
+        } else {
+            panic!("Expected diagonal secant intersection");
+        }
+    }
+
+    #[test]
+    fn test_sphere_line_tangent_top() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
+        let line = Line::new(Point::new([-10.0, 5.0]), Vector::new([1.0, 0.0]));
+
+        if let IntersectionResult::Tangent(p) = sphere.intersect_line(&line) {
+            assert_relative_eq!(p.coords[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords[1], 5.0, epsilon = 1e-6);
+        } else {
+            panic!("Expected tangent at (0, 5)");
+        }
     }
 }

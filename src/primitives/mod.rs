@@ -2,7 +2,7 @@ pub mod hypersphere;
 pub mod line;
 pub mod segment;
 
-use crate::{EuclideanVector, Point, VectorMetricSquared};
+use crate::{EuclideanVector, FloatSign, Point, VectorMetricSquared, classify_to_zero};
 use num_traits::Float;
 
 /// Defines spatial queries for geometric entities in N-dimensional space.
@@ -33,19 +33,58 @@ pub trait SpatialRelation<T, const N: usize> {
     }
 
     /// Check if a point lies on the boundary/structure of the entity.
+    #[inline]
     fn contains(&self, point: &Point<T, N>) -> bool
     where
         T: Float + std::iter::Sum,
     {
-        (self.closest_point(point) - *point).magnitude_squared() <= T::epsilon()
+        match classify_to_zero(
+            (self.closest_point(point) - *point).magnitude_squared(),
+            None,
+        ) {
+            FloatSign::Zero => true,
+            _ => false,
+        }
     }
 
     /// Check if a point is within the volume or area defined by the entity.
     /// For 1D entities (Line, Segment), this defaults to `contains`.
+    #[inline]
     fn is_inside(&self, point: &Point<T, N>) -> bool
     where
         T: Float + std::iter::Sum,
     {
         self.contains(point)
     }
+}
+
+/// Represents the outcome of an intersection query between geometric primitives.
+///
+/// This enum accounts for the different ways entities can interact in N-dimensional space,
+/// distinguishing between points of contact, boundary crossings, and overlapping structures.
+#[derive(Debug, Clone, PartialEq, Copy)]
+pub enum IntersectionResult<T, const N: usize> {
+    /// No intersection occurs between the entities.
+    None,
+
+    /// The entities touch at exactly one point without crossing boundaries.
+    ///
+    /// In physics, this often represents a grazing contact or a perfect bounce.
+    Tangent(Point<T, N>),
+
+    /// The entities intersect at two distinct points.
+    ///
+    /// Typical of a line or segment that enters and then exits a volume (like a hypersphere).
+    Secant(Point<T, N>, Point<T, N>),
+
+    /// The entities are coincident or overlap over an infinite or continuous range.
+    ///
+    /// *Note: Reserved for future implementation of collinear lines and overlapping segments.*
+    Collinear,
+
+    /// Exactly one point of intersection that is not a tangency.
+    ///
+    /// This occurs when a finite primitive (like a segment) crosses a boundary exactly once,
+    /// usually because one of its endpoints is contained within the other entity's volume.
+    Single(Point<T, N>),
 }
