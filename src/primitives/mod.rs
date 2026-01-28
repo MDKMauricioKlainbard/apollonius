@@ -1,8 +1,10 @@
+pub mod aabb;
 pub mod hypersphere;
 pub mod line;
 pub mod segment;
+pub mod hyperplane;
 
-use crate::{EuclideanVector, FloatSign, Point, VectorMetricSquared, classify_to_zero};
+use crate::{AABB, EuclideanVector, FloatSign, Point, VectorMetricSquared, classify_to_zero};
 use num_traits::Float;
 
 /// Defines spatial queries for geometric entities in N-dimensional space.
@@ -56,6 +58,11 @@ pub trait SpatialRelation<T, const N: usize> {
     {
         self.contains(point)
     }
+}
+
+pub trait Bounded<T, const N: usize> {
+    /// Returns the minimum Axis-Aligned Bounding Box that encloses the entity.
+    fn aabb(&self) -> AABB<T, N>;
 }
 
 /// Represents the outcome of an intersection query between geometric primitives.

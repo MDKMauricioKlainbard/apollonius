@@ -1,6 +1,6 @@
 use crate::{
-    EuclideanVector, FloatSign, IntersectionResult, Line, Point, Segment, SpatialRelation, Vector,
-    VectorMetricSquared, classify_to_zero,
+    AABB, Bounded, EuclideanVector, FloatSign, IntersectionResult, Line, Point, Segment,
+    SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
 };
 use num_traits::Float;
 
@@ -8,31 +8,91 @@ use num_traits::Float;
 ///
 /// In 2D, this represents a circle. In 3D, a sphere. In higher dimensions,
 /// it represents the set of all points at a fixed distance from a central point.
+///
+/// This structure maintains a cached `AABB` to optimize spatial queries.
+/// #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Hypersphere<T, const N: usize> {
-    /// The geometric center of the hypersphere.
-    pub center: Point<T, N>,
-    /// The distance from the center to the surface.
-    pub radius: T,
+    center: Point<T, N>,
+    radius: T,
+    cached_aabb: AABB<T, N>,
 }
-
 /// A 2-dimensional hypersphere.
 pub type Circle<T> = Hypersphere<T, 2>;
 /// A 3-dimensional hypersphere.
 pub type Sphere<T> = Hypersphere<T, 3>;
 
-impl<T, const N: usize> Hypersphere<T, N> {
-    /// Creates a new hypersphere with the given center and radius.
-    ///
-    /// # Examples
-    /// ```
-    /// use apollonius::Point;
-    /// use apollonius::primitives::hypersphere::Circle;
-    ///
-    /// let center = Point::new([0.0, 0.0]);
-    /// let circle = Circle::new(center, 5.0);
-    /// ```
+impl<T, const N: usize> Hypersphere<T, N>
+where
+    T: Float + std::iter::Sum,
+{
+    /// Creates a new hypersphere and pre-calculates its bounding box.
+    #[inline]
     pub fn new(center: Point<T, N>, radius: T) -> Self {
-        Self { center, radius }
+        let cached_aabb = Self::compute_aabb(&center, radius);
+        Self {
+            center,
+            radius,
+            cached_aabb,
+        }
+    }
+
+    /// Static helper to compute an AABB from a center and radius without instantiation.
+    fn compute_aabb(center: &Point<T, N>, radius: T) -> AABB<T, N> {
+        let mut min_coords = [T::zero(); N];
+        let mut max_coords = [T::zero(); N];
+
+        for i in 0..N {
+            min_coords[i] = center.coords[i] - radius;
+            max_coords[i] = center.coords[i] + radius;
+        }
+
+        AABB {
+            min: Point::new(min_coords),
+            max: Point::new(max_coords),
+        }
+    }
+
+    /// Returns a reference to the hypersphere's center.
+    #[inline]
+    pub fn center(&self) -> Point<T, N> {
+        self.center
+    }
+
+    /// Returns the current radius.
+    #[inline]
+    pub fn radius(&self) -> T {
+        self.radius
+    }
+
+    /// Updates the center and performs an incremental O(N) translation of the cached AABB.
+    pub fn set_center(&mut self, new_center: Point<T, N>) {
+        let offset = new_center - self.center;
+        self.center = new_center;
+
+        self.cached_aabb.min = self.cached_aabb.min + offset;
+        self.cached_aabb.max = self.cached_aabb.max + offset;
+    }
+
+    /// Updates the radius and expands or contracts the cached AABB radially in O(N).
+    pub fn set_radius(&mut self, new_radius: T) {
+        let delta_r = new_radius - self.radius;
+        self.radius = new_radius;
+
+        for i in 0..N {
+            self.cached_aabb.min.coords[i] = self.cached_aabb.min.coords[i] - delta_r;
+            self.cached_aabb.max.coords[i] = self.cached_aabb.max.coords[i] + delta_r;
+        }
+    }
+}
+
+impl<T, const N: usize> Bounded<T, N> for Hypersphere<T, N>
+where
+    T: Copy,
+{
+    /// Returns the cached Axis-Aligned Bounding Box.
+    #[inline]
+    fn aabb(&self) -> AABB<T, N> {
+        self.cached_aabb
     }
 }
 
@@ -265,5 +325,59 @@ mod tests {
         } else {
             panic!("Expected tangent at (0, 5)");
         }
+    }
+
+    #[test]
+    fn test_initial_aabb_calculation() {
+        let circle = Circle::new(Point::new([10.0, 20.0]), 5.0);
+        let aabb = circle.aabb();
+
+        // Min: 10-5, 20-5 -> (5, 15)
+        assert_relative_eq!(aabb.min.coords[0], 5.0);
+        assert_relative_eq!(aabb.min.coords[1], 15.0);
+        // Max: 10+5, 20+5 -> (15, 25)
+        assert_relative_eq!(aabb.max.coords[0], 15.0);
+        assert_relative_eq!(aabb.max.coords[1], 25.0);
+    }
+
+    #[test]
+    fn test_aabb_update_after_moving_center() {
+        let mut sphere = Sphere::new(Point::new([0.0, 0.0, 0.0]), 10.0);
+        sphere.set_center(Point::new([100.0, 0.0, 0.0]));
+
+        let aabb = sphere.aabb();
+        // New Center 100, Radius 10 -> Min X: 90, Max X: 110
+        assert_relative_eq!(aabb.min.coords[0], 90.0);
+        assert_relative_eq!(aabb.max.coords[0], 110.0);
+        // Y and Z should remain centered around 0 -> Min: -10, Max: 10
+        assert_relative_eq!(aabb.min.coords[1], -10.0);
+        assert_relative_eq!(aabb.max.coords[2], 10.0);
+    }
+
+    #[test]
+    fn test_aabb_update_after_changing_radius() {
+        let mut circle = Circle::new(Point::new([0.0, 0.0]), 5.0);
+        // Expand radius to 15 (delta_r = 10)
+        circle.set_radius(15.0);
+
+        let aabb = circle.aabb();
+        // Min should be 0 - 15 = -15
+        assert_relative_eq!(aabb.min.coords[0], -15.0);
+        assert_relative_eq!(aabb.min.coords[1], -15.0);
+        // Max should be 0 + 15 = 15
+        assert_relative_eq!(aabb.max.coords[0], 15.0);
+        assert_relative_eq!(aabb.max.coords[1], 15.0);
+    }
+
+    #[test]
+    fn test_aabb_shrinking_radius() {
+        let mut circle = Circle::new(Point::new([10.0, 10.0]), 10.0);
+        // Shrink radius to 2 (delta_r = -8)
+        circle.set_radius(2.0);
+
+        let aabb = circle.aabb();
+        // Center 10, Radius 2 -> Min: 8, Max: 12
+        assert_relative_eq!(aabb.min.coords[0], 8.0);
+        assert_relative_eq!(aabb.max.coords[1], 12.0);
     }
 }

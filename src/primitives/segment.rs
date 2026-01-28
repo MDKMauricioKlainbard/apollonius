@@ -1,46 +1,61 @@
 use crate::{
-    EuclideanVector, FloatSign, Hypersphere, IntersectionResult, Point, SpatialRelation, Vector,
-    VectorMetricSquared, classify_to_zero,
+    AABB, Bounded, EuclideanVector, FloatSign, Hypersphere, IntersectionResult, Point,
+    SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
 };
 use num_traits::Float;
-use std::ops::{Mul, Sub};
 
 /// A finite line segment in N-dimensional space defined by two endpoints.
 ///
-/// The segment pre-calculates its displacement vector (delta) and squared
-/// magnitude to optimize frequent spatial queries and metric calculations.
+/// The segment pre-calculates its displacement vector (delta), squared
+/// magnitude, and its Axis-Aligned Bounding Box (AABB) to optimize
+/// frequent spatial queries and broad-phase collision detection.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Segment<T, const N: usize> {
     start: Point<T, N>,
     end: Point<T, N>,
     delta: Vector<T, N>,
-    mag_sq: T, // Cached value for optimization
+    mag_sq: T,               // Cached value for optimization
+    cached_aabb: AABB<T, N>, // Cached Bounding Box
 }
 
 // Basic implementation for construction and data integrity
 impl<T, const N: usize> Segment<T, N>
 where
-    T: Copy + Sub<Output = T> + Mul<Output = T> + std::iter::Sum,
+    T: Float + std::iter::Sum,
 {
-    /// Creates a new Segment from two points.
-    ///
-    /// # Examples
-    /// ```
-    /// use apollonius::{Point, Segment};
-    /// let start = Point::new([0.0, 0.0]);
-    /// let end = Point::new([10.0, 0.0]);
-    /// let segment = Segment::new(start, end);
-    /// ```
+    /// Creates a new Segment from two points and pre-calculates the internal state.
     #[inline]
     pub fn new(start: Point<T, N>, end: Point<T, N>) -> Self {
         let delta = end - start;
         let mag_sq = delta.magnitude_squared();
+        let cached_aabb = Self::compute_aabb(start, end);
         Self {
             start,
             end,
             delta,
             mag_sq,
+            cached_aabb,
         }
+    }
+
+    /// Internal helper to calculate the AABB from the two endpoints.
+    fn compute_aabb(start: Point<T, N>, end: Point<T, N>) -> AABB<T, N> {
+        let mut min_coords = [T::zero(); N];
+        let mut max_coords = [T::zero(); N];
+
+        for i in 0..N {
+            let s = start.coords[i];
+            let e = end.coords[i];
+            if s < e {
+                min_coords[i] = s;
+                max_coords[i] = e;
+            } else {
+                min_coords[i] = e;
+                max_coords[i] = s;
+            }
+        }
+
+        AABB::new(Point::new(min_coords), Point::new(max_coords))
     }
 
     /// Returns the start point of the segment.
@@ -55,24 +70,42 @@ where
         self.end
     }
 
-    /// Updates the start point and synchronizes the internal state.
+    /// Updates the start point and synchronizes the delta, magnitude, and AABB.
     pub fn set_start(&mut self, new_start: Point<T, N>) {
         self.start = new_start;
         self.delta = self.end - self.start;
         self.mag_sq = self.delta.magnitude_squared();
+        self.cached_aabb = Self::compute_aabb(self.start, self.end);
     }
 
-    /// Updates the end point and synchronizes the internal state.
+    /// Updates the end point and synchronizes the delta, magnitude, and AABB.
     pub fn set_end(&mut self, new_end: Point<T, N>) {
         self.end = new_end;
         self.delta = self.end - self.start;
         self.mag_sq = self.delta.magnitude_squared();
+        self.cached_aabb = Self::compute_aabb(self.start, self.end);
     }
 
     /// Returns the cached squared length of the segment.
     #[inline]
     pub fn length_squared(&self) -> T {
         self.mag_sq
+    }
+
+    // Returns vector end - start
+    pub fn delta(&self) -> Vector<T, N> {
+        self.delta
+    }
+}
+
+impl<T, const N: usize> Bounded<T, N> for Segment<T, N>
+where
+    T: Float + std::iter::Sum,
+{
+    /// Returns the cached Axis-Aligned Bounding Box.
+    #[inline]
+    fn aabb(&self) -> AABB<T, N> {
+        self.cached_aabb
     }
 }
 
@@ -136,12 +169,12 @@ where
         }
 
         // 1. Orthogonal projection onto the infinite line (unclamped)
-        let t_line = (sphere.center - self.start).dot(&self.delta) / mag_sq;
+        let t_line = (sphere.center() - self.start).dot(&self.delta) / mag_sq;
         let pc = self.at(t_line);
 
         // 2. Orthogonal distance to the line
-        let dist_sq = (pc - sphere.center).magnitude_squared();
-        let r_sq = sphere.radius * sphere.radius;
+        let dist_sq = (pc - sphere.center()).magnitude_squared();
+        let r_sq = sphere.radius() * sphere.radius();
         let diff = r_sq - dist_sq;
 
         match classify_to_zero(diff, None) {
@@ -414,10 +447,64 @@ mod tests {
             assert_relative_eq!(p.coords[1], 1.0, epsilon = 1e-6);
 
             // CRITICAL CHECK: The point must actually be on the sphere surface
-            let dist_to_center = (p - sphere.center).magnitude();
+            let dist_to_center = (p - sphere.center()).magnitude();
             assert_relative_eq!(dist_to_center, 5.0, epsilon = 1e-6);
         } else {
             panic!("Should have found a Single intersection at x ≈ 4.898");
         }
+    }
+
+    #[test]
+    fn test_segment_initial_aabb() {
+        // Diagonal segment from (0, 10) to (10, 0)
+        let seg = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
+        let aabb = seg.aabb();
+
+        // Min should be (0, 0), Max should be (10, 10)
+        assert_relative_eq!(aabb.min.coords[0], 0.0);
+        assert_relative_eq!(aabb.min.coords[1], 0.0);
+        assert_relative_eq!(aabb.max.coords[0], 10.0);
+        assert_relative_eq!(aabb.max.coords[1], 10.0);
+    }
+
+    #[test]
+    fn test_aabb_updates_on_set_start() {
+        let mut seg = Segment::new(Point::new([0.0, 0.0]), Point::new([5.0, 5.0]));
+
+        // Move start far to the negative side
+        seg.set_start(Point::new([-10.0, -10.0]));
+        let aabb = seg.aabb();
+
+        assert_relative_eq!(aabb.min.coords[0], -10.0);
+        assert_relative_eq!(aabb.min.coords[1], -10.0);
+        assert_relative_eq!(aabb.max.coords[0], 5.0);
+        assert_relative_eq!(aabb.max.coords[1], 5.0);
+    }
+
+    #[test]
+    fn test_aabb_updates_on_set_end() {
+        let mut seg = Segment::new(Point::new([0.0, 0.0]), Point::new([5.0, 5.0]));
+
+        // Shrink end point
+        seg.set_end(Point::new([1.0, 2.0]));
+        let aabb = seg.aabb();
+
+        assert_relative_eq!(aabb.min.coords[0], 0.0);
+        assert_relative_eq!(aabb.max.coords[0], 1.0);
+        assert_relative_eq!(aabb.max.coords[1], 2.0);
+    }
+
+    #[test]
+    fn test_aabb_handles_endpoint_swap() {
+        let mut seg = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
+
+        // Swap endpoints
+        seg.set_start(Point::new([10.0, 10.0]));
+        seg.set_end(Point::new([0.0, 0.0]));
+
+        let aabb = seg.aabb();
+        // AABB should still be (0,0) to (10,10)
+        assert_relative_eq!(aabb.min.coords[0], 0.0);
+        assert_relative_eq!(aabb.max.coords[0], 10.0);
     }
 }

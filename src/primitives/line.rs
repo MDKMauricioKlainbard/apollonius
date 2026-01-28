@@ -53,9 +53,9 @@ where
     }
 
     pub fn intersect_sphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
-        let pc = self.closest_point(&sphere.center);
-        let dist_sq = (pc - sphere.center).magnitude_squared();
-        let r_sq = sphere.radius * sphere.radius;
+        let pc = self.closest_point(&sphere.center());
+        let dist_sq = (pc - sphere.center()).magnitude_squared();
+        let r_sq = sphere.radius() * sphere.radius();
         let diff = r_sq - dist_sq;
 
         match classify_to_zero(diff, None) {
