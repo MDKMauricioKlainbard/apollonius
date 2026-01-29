@@ -5,10 +5,21 @@ use crate::Vector;
 
 /// Represents a location in an N-dimensional affine space.
 ///
-/// Unlike a vector, a point represents a fixed position and does not have
-/// direction or magnitude.
+/// Unlike a [`Vector`], a [`Point`] represents a fixed position in space and
+/// does not have direction or magnitude. Operations between points and vectors
+/// follow the rules of affine geometry.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::Point;
+///
+/// let p = Point::new([1.0, 2.0, 3.0]);
+/// assert_eq!(p.coords, [1.0, 2.0, 3.0]);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<T, const N: usize> {
+    /// The coordinate values along each of the N axes.
     pub coords: [T; N],
 }
 
@@ -21,7 +32,7 @@ pub type Point3D<T> = Point<T, 3>;
 /// Trait for types that can calculate the squared distance between each other.
 ///
 /// Using squared distance is often preferred for performance-critical
-/// comparisons to avoid the computational cost of the square root.
+/// comparisons to avoid the computational cost of the square root operation.
 pub trait MetricSquared<T> {
     /// Calculates the squared Euclidean distance between `self` and `other`.
     fn distance_squared(&self, other: &Self) -> T;
@@ -38,14 +49,6 @@ where
     T: Copy,
 {
     /// Creates a new Point from a fixed-size array of coordinates.
-    ///
-    /// # Example
-    /// ```
-    /// use apollonius::Point;
-    ///
-    /// let p = Point::new([1.0, 2.0, 3.0]);
-    /// assert_eq!(p.coords, [1.0, 2.0, 3.0]);
-    /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
@@ -53,7 +56,7 @@ where
 }
 
 impl<T> From<(T, T)> for Point2D<T> {
-    /// Converts a 2-element tuple into a Point2D.
+    /// Converts a 2-element tuple into a [`Point2D`].
     ///
     /// # Example
     /// ```
@@ -71,7 +74,7 @@ impl<T> From<(T, T)> for Point2D<T> {
 }
 
 impl<T> From<(T, T, T)> for Point3D<T> {
-    /// Converts a 3-element tuple into a Point3D.
+    /// Converts a 3-element tuple into a [`Point3D`].
     #[inline]
     fn from(tuple: (T, T, T)) -> Self {
         Self {
@@ -81,7 +84,8 @@ impl<T> From<(T, T, T)> for Point3D<T> {
 }
 
 impl<T, const N: usize> From<Vector<T, N>> for Point<T, N> {
-    /// Converts a Vector into a Point, assuming the vector starts at the origin.
+    /// Converts a [`Vector`] into a [`Point`], assuming the vector represents
+    /// a position relative to the origin.
     #[inline]
     fn from(vector: Vector<T, N>) -> Self {
         Self {
@@ -94,6 +98,17 @@ impl<T, const N: usize> MetricSquared<T> for Point<T, N>
 where
     T: Copy + Sub<Output = T> + Mul<Output = T> + std::iter::Sum,
 {
+    /// Calculates the squared Euclidean distance between two points.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, MetricSquared};
+    ///
+    /// let p1 = Point::new([0.0, 0.0]);
+    /// let p2 = Point::new([3.0, 4.0]);
+    /// assert_eq!(p1.distance_squared(&p2), 25.0);
+    /// ```
     #[inline]
     fn distance_squared(&self, other: &Self) -> T {
         self.coords
@@ -111,9 +126,9 @@ impl<T, const N: usize> EuclideanMetric<T> for Point<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Calculates Euclidean distance.
+    /// Calculates the Euclidean distance between two points.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use apollonius::{Point, EuclideanMetric};
     ///
@@ -133,17 +148,17 @@ where
 {
     type Output = Vector<T, N>;
 
-    /// Subtracting two points yields a displacement Vector.
+    /// Subtracting two points yields a displacement [`Vector`].
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use apollonius::{Point, Vector};
     ///
-    /// let p1 = Point::new([10, 20]);
-    /// let p2 = Point::new([15, 25]);
+    /// let p1 = Point::new([10.0, 20.0]);
+    /// let p2 = Point::new([15.0, 25.0]);
     /// let v = p2 - p1;
     ///
-    /// assert_eq!(v.coords, [5, 5]);
+    /// assert_eq!(v.coords, [5.0, 5.0]);
     /// ```
     fn sub(self, rhs: Self) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
@@ -157,9 +172,9 @@ where
 {
     type Output = Point<T, N>;
 
-    /// Adding a Vector to a Point translates the point in space.
+    /// Adding a [`Vector`] to a [`Point`] translates the point in space.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use apollonius::{Point, Vector};
     ///
@@ -181,9 +196,9 @@ where
 {
     type Output = Point<T, N>;
 
-    /// Substracting a Vector to a Point translates the point in space.
+    /// Subtracting a [`Vector`] from a [`Point`] translates the point in the opposite direction.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use apollonius::{Point, Vector};
     ///

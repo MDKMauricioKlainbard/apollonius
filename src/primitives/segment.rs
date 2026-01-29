@@ -9,6 +9,19 @@ use num_traits::Float;
 /// The segment pre-calculates its displacement vector (delta), squared
 /// magnitude, and its Axis-Aligned Bounding Box (AABB) to optimize
 /// frequent spatial queries and broad-phase collision detection.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::{Point, Segment};
+///
+/// let start = Point::new([0.0, 0.0]);
+/// let end = Point::new([10.0, 0.0]);
+/// let segment = Segment::new(start, end);
+///
+/// assert_eq!(segment.length(), 10.0);
+/// assert_eq!(segment.midpoint().coords[0], 5.0);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Segment<T, const N: usize> {
     start: Point<T, N>,
@@ -18,7 +31,6 @@ pub struct Segment<T, const N: usize> {
     cached_aabb: AABB<T, N>, // Cached Bounding Box
 }
 
-// Basic implementation for construction and data integrity
 impl<T, const N: usize> Segment<T, N>
 where
     T: Float + std::iter::Sum,
@@ -92,7 +104,8 @@ where
         self.mag_sq
     }
 
-    // Returns vector end - start
+    /// Returns the displacement vector (end - start).
+    #[inline]
     pub fn delta(&self) -> Vector<T, N> {
         self.delta
     }
@@ -109,7 +122,6 @@ where
     }
 }
 
-// Advanced geometric operations requiring floating-point numbers
 impl<T, const N: usize> Segment<T, N>
 where
     T: Float + std::iter::Sum,
@@ -122,7 +134,7 @@ where
 
     /// Returns the normalized direction vector of the segment.
     ///
-    /// Returns None if the segment has zero length (start == end).
+    /// Returns `None` if the segment has zero length (start == end).
     pub fn direction(&self) -> Option<Vector<T, N>> {
         self.delta.normalize()
     }
@@ -133,18 +145,18 @@ where
         self.at(half)
     }
 
-    /// Returns a point along the segment at parameter t.
+    /// Returns a point along the segment at parameter `t`.
     ///
-    /// * t = 0.0 yields the start point.
-    /// * t = 1.0 yields the end point.
+    /// * `t = 0.0` yields the start point.
+    /// * `t = 1.0` yields the end point.
     ///
-    /// Note: This method allows extrapolation if t is outside the [0, 1] range.
+    /// Note: This method allows extrapolation if `t` is outside the [0, 1] range.
     #[inline]
     pub fn at(&self, t: T) -> Point<T, N> {
         self.start + self.delta * t
     }
 
-    /// Internal helper to find the parameter t for a point p known to be on the line of the segment.
+    /// Internal helper to find the parameter `t` for a point `p`.
     fn get_t(&self, p: Point<T, N>) -> T {
         if self.mag_sq <= T::zero() {
             return T::zero();
@@ -154,25 +166,35 @@ where
 
     /// Calculates the intersection points between this segment and a hypersphere.
     ///
-    /// This method uses a geometric approach:
-    /// 1. Projects the sphere's center onto the infinite line containing the segment.
-    /// 2. Calculates the orthogonal distance to determine if an intersection exists.
-    /// 3. If it exists, calculates the potential intersection points on the line.
-    /// 4. Filters the points to return only those within the segment's [0, 1] range.
+    /// This method identifies if the segment enters, leaves, or touches the sphere.
     ///
-    /// The distinction between `Tangent`, `Secant`, and `Single` allows for precise
-    /// physical responses (e.g., bounces vs. boundary crossings).
+    /// # Returns
+    /// - `IntersectionResult::None`: No intersection within segment bounds.
+    /// - `IntersectionResult::Tangent(p)`: The segment is tangent to the sphere.
+    /// - `IntersectionResult::Secant(p1, p2)`: Both intersection points lie on the segment.
+    /// - `IntersectionResult::Single(p)`: Only one end of the segment is inside the sphere.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Segment, Hypersphere, IntersectionResult};
+    ///
+    /// let circle = Hypersphere::new(Point::new([0.0, 0.0]), 2.0);
+    /// let segment = Segment::new(Point::new([-5.0, 0.0]), Point::new([0.0, 0.0]));
+    ///
+    /// if let IntersectionResult::Single(p) = segment.intersect_sphere(&circle) {
+    ///     assert_eq!(p.coords[0], -2.0);
+    /// }
+    /// ```
     pub fn intersect_sphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
         let mag_sq = self.length_squared();
         if mag_sq <= T::zero() {
             return IntersectionResult::None;
         }
 
-        // 1. Orthogonal projection onto the infinite line (unclamped)
         let t_line = (sphere.center() - self.start).dot(&self.delta) / mag_sq;
         let pc = self.at(t_line);
 
-        // 2. Orthogonal distance to the line
         let dist_sq = (pc - sphere.center()).magnitude_squared();
         let r_sq = sphere.radius() * sphere.radius();
         let diff = r_sq - dist_sq;
@@ -180,7 +202,6 @@ where
         match classify_to_zero(diff, None) {
             FloatSign::Negative => IntersectionResult::None,
             FloatSign::Zero => {
-                // Check if the tangent point is within segment bounds
                 if t_line >= -T::epsilon() && t_line <= T::one() + T::epsilon() {
                     IntersectionResult::Tangent(pc)
                 } else {
@@ -188,13 +209,12 @@ where
                 }
             }
             FloatSign::Positive => {
-                let h = diff.sqrt(); // Half-chord length
+                let h = diff.sqrt();
                 let dir = self.direction().unwrap_or(self.delta);
 
                 let p1 = pc - dir * h;
                 let p2 = pc + dir * h;
 
-                // Obtain parameters t for filtering
                 let t1 = self.get_t(p1);
                 let t2 = self.get_t(p2);
 
@@ -216,12 +236,21 @@ impl<T, const N: usize> SpatialRelation<T, N> for Segment<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Projects a point p onto the segment and returns the closest point.
+    /// Projects a point `p` onto the segment and returns the closest point.
     ///
-    /// The projection is clamped to the segment's endpoints.
+    /// The resulting point is clamped to the segment's endpoints.
     ///
-    /// Calculation logic:
-    /// t = ((p - start) dot delta) / length_squared
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Segment, SpatialRelation};
+    ///
+    /// let segment = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
+    /// let p = Point::new([-5.0, 5.0]);
+    ///
+    /// // Should clamp to the start point
+    /// assert_eq!(segment.closest_point(&p).coords[0], 0.0);
+    /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let mag_sq = self.length_squared();
 

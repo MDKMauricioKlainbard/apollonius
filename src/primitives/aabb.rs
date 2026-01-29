@@ -4,13 +4,28 @@ use num_traits::Float;
 /// An Axis-Aligned Bounding Box (AABB) defined by its minimum and maximum coordinates.
 ///
 /// AABBs are used as a first-pass (broad-phase) collision detection mechanism.
-/// They provide a computationally cheap way to determine if two entities *might* be
+/// They provide a computationally cheap way to determine if two entities might be
 /// intersecting before running more expensive primitive-specific intersection algorithms.
+///
+/// This implementation is N-dimensional, allowing for AABBs in 2D, 3D, or higher-dimensional spaces.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::{Point, AABB};
+///
+/// let min = Point::new([0.0, 0.0]);
+/// let max = Point::new([2.0, 2.0]);
+/// let aabb = AABB::new(min, max);
+///
+/// assert_eq!(aabb.min.coords[0], 0.0);
+/// assert_eq!(aabb.max.coords[1], 2.0);
+/// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct AABB<T, const N: usize> {
-    /// The component-wise minimum point (bottom-left-front).
+    /// The component-wise minimum point (e.g., bottom-left-front).
     pub min: Point<T, N>,
-    /// The component-wise maximum point (top-right-back).
+    /// The component-wise maximum point (e.g., top-right-back).
     pub max: Point<T, N>,
 }
 
@@ -20,21 +35,53 @@ where
 {
     /// Creates a new AABB from two points.
     ///
-    /// Note: The caller must ensure that `min` components are less than or equal to `max` components.
+    /// # Arguments
+    /// * `min` - The component-wise minimum point.
+    /// * `max` - The component-wise maximum point.
+    ///
+    /// # Panics
+    /// While this method does not currently panic, the caller must ensure that
+    /// `min` components are less than or equal to `max` components for correct
+    /// intersection logic.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, AABB};
+    ///
+    /// let aabb = AABB::new(Point::new([-1.0, -1.0]), Point::new([1.0, 1.0]));
+    /// ```
     pub fn new(min: Point<T, N>, max: Point<T, N>) -> Self {
         Self { min, max }
     }
 
     /// Determines if this AABB overlaps with another AABB.
     ///
-    /// This implementation uses the Hyper-rectangle Overlap theorem, an extension of the
-    /// logic used in 2D rectangle collision. Two AABBs intersect if and only if they
-    /// overlap on all N axes simultaneously.
+    /// This implementation uses the Hyper-rectangle Overlap theorem. Two AABBs intersect
+    /// if and only if they overlap on all N axes simultaneously.
+    ///
+    /// # Performance
+    /// The method uses an early-exit strategy: as soon as a separation is found on
+    /// any axis, it returns `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, AABB};
+    ///
+    /// let box_a = AABB::new(Point::new([0.0, 0.0]), Point::new([2.0, 2.0]));
+    /// let box_b = AABB::new(Point::new([1.0, 1.0]), Point::new([3.0, 3.0]));
+    /// let box_c = AABB::new(Point::new([10.0, 10.0]), Point::new([12.0, 12.0]));
+    ///
+    /// assert!(box_a.intersects(&box_b));
+    /// assert!(!box_a.intersects(&box_c));
+    /// ```
     #[inline]
     pub fn intersects(&self, other: &Self) -> bool {
         for i in 0..N {
-            // If there is a gap in any single dimension, the boxes cannot overlap.
-            // Using the negation of the "no-overlap" condition for early exit.
+            // Hyper-rectangle overlap logic:
+            // Two intervals [a, b] and [c, d] overlap if a < d and c < b.
+            // We use the negation for early exit.
             if self.max.coords[i] <= other.min.coords[i]
                 || other.max.coords[i] <= self.min.coords[i]
             {

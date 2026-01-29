@@ -7,7 +7,19 @@ use num_traits::Float;
 /// Represents an infinite line in N-dimensional space.
 ///
 /// A line is defined by an origin point and a direction vector.
-/// It extends infinitely in both directions.
+/// It extends infinitely in both positive and negative directions.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::{Point, Vector, Line};
+///
+/// let origin = Point::new([0.0, 0.0, 0.0]);
+/// let direction = Vector::new([1.0, 0.0, 0.0]);
+/// let line = Line::new(origin, direction);
+///
+/// assert_eq!(line.at(10.0).coords[0], 10.0);
+/// ```
 pub struct Line<T, const N: usize> {
     origin: Point<T, N>,
     direction: Vector<T, N>,
@@ -19,17 +31,18 @@ where
 {
     /// Creates a new Line from an origin and a direction.
     ///
-    /// The direction vector is automatically normalized to ensure
-    /// that parametric evaluations and projections are consistent.
+    /// The direction vector is automatically normalized. If a null vector is provided,
+    /// the line retains the original vector, which may lead to undefined behavior
+    /// in projections.
     ///
-    /// # Example
+    /// # Examples
+    ///
     /// ```
-    /// use apollonius::{Point, Vector};
-    /// use apollonius::primitives::line::Line;
+    /// use apollonius::{Point, Vector, Line};
     ///
-    /// let origin = Point::new([0.0, 0.0]);
-    /// let direction = Vector::new([10.0, 0.0]);
-    /// let line = Line::new(origin, direction);
+    /// let line = Line::new(Point::new([0.0, 0.0]), Vector::new([5.0, 0.0]));
+    /// // The direction is normalized to unit length
+    /// assert_eq!(line.at(1.0).coords[0], 1.0);
     /// ```
     pub fn new(origin: Point<T, N>, direction: Vector<T, N>) -> Self {
         let direction = direction.normalize().unwrap_or(direction);
@@ -38,20 +51,32 @@ where
 
     /// Evaluates the line at a given parameter t.
     ///
-    /// Returns the point calculated as the origin plus the direction vector scaled by t.
-    ///
-    /// # Example
-    /// ```
-    /// # use apollonius::{Point, Vector};
-    /// # use apollonius::primitives::line::Line;
-    /// let line = Line::new(Point::new([0.0, 0.0]), Vector::new([1.0, 0.0]));
-    /// let p = line.at(5.0);
-    /// assert_eq!(p.coords, [5.0, 0.0]);
-    /// ```
+    /// Returns the point P = origin + direction * t.
     pub fn at(&self, t: T) -> Point<T, N> {
         self.origin + self.direction * t
     }
 
+    /// Computes the intersection(s) between this line and a hypersphere.
+    ///
+    /// # Returns
+    /// - `IntersectionResult::None`: The line does not intersect the sphere.
+    /// - `IntersectionResult::Tangent(p)`: The line is tangent to the sphere at point `p`.
+    /// - `IntersectionResult::Secant(p1, p2)`: The line enters and leaves the sphere at `p1` and `p2`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Line, Hypersphere, IntersectionResult};
+    ///
+    /// let line = Line::new(Point::new([-5.0, 0.0]), Vector::new([1.0, 0.0]));
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 2.0);
+    ///
+    /// let result = line.intersect_sphere(&sphere);
+    /// if let IntersectionResult::Secant(p1, p2) = result {
+    ///     assert_eq!(p1.coords[0], -2.0);
+    ///     assert_eq!(p2.coords[0], 2.0);
+    /// }
+    /// ```
     pub fn intersect_sphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
         let pc = self.closest_point(&sphere.center());
         let dist_sq = (pc - sphere.center()).magnitude_squared();
@@ -73,13 +98,13 @@ impl<T, const N: usize> SpatialRelation<T, N> for Line<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Projects a point onto the line to find the nearest location.
+    /// Projects a point `p` onto the line to find the nearest location.
     ///
-    /// Since the direction vector is normalized, the projection is calculated
-    /// using the dot product between the direction and the displacement vector
-    /// from the origin to the target point.
+    /// The projection is calculated by finding the scalar projection of the
+    /// vector (p - origin) onto the line's unit direction vector.
     ///
-    /// # Example
+    /// # Examples
+    ///
     /// ```
     /// use apollonius::{Point, Vector, Line, SpatialRelation};
     ///
@@ -87,11 +112,28 @@ where
     /// let p = Point::new([5.0, 10.0]);
     /// let closest = line.closest_point(&p);
     ///
-    /// assert_eq!(closest.coords, [5.0, 0.0]);
+    /// assert_eq!(closest.coords[0], 5.0);
+    /// assert_eq!(closest.coords[1], 0.0);
     /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let t = (*p - self.origin).dot(&self.direction);
         self.origin + self.direction * t
+    }
+
+    /// Checks if a point lies on the line within the engine's tolerance.
+    fn contains(&self, p: &Point<T, N>) -> bool {
+        let projected = self.closest_point(p);
+        let dist_sq = (*p - projected).magnitude_squared();
+        match classify_to_zero(dist_sq, None) {
+            FloatSign::Zero => true,
+            _ => false,
+        }
+    }
+
+    /// For an infinite line, "inside" is not strictly defined as it has no volume.
+    /// This implementation currently returns `false` for all points.
+    fn is_inside(&self, _p: &Point<T, N>) -> bool {
+        false
     }
 }
 

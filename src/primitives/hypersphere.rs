@@ -6,19 +6,33 @@ use num_traits::Float;
 
 /// An N-dimensional hypersphere defined by a center point and a radius.
 ///
-/// In 2D, this represents a circle. In 3D, a sphere. In higher dimensions,
-/// it represents the set of all points at a fixed distance from a central point.
+/// In 2D space, this represents a circle. In 3D, a sphere. In higher dimensions,
+/// it represents the set of all points at a fixed distance (radius) from a central point.
 ///
-/// This structure maintains a cached `AABB` to optimize spatial queries.
-/// #[derive(Debug, PartialEq, Clone, Copy)]
+/// This structure maintains a cached `AABB` to optimize spatial queries and
+/// broad-phase collision detection.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::{Point, Hypersphere};
+///
+/// // Create a 2D circle at (0, 0) with radius 1.0
+/// let center = Point::new([0.0, 0.0]);
+/// let circle = Hypersphere::new(center, 1.0);
+///
+/// assert_eq!(circle.radius(), 1.0);
+/// ```
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Hypersphere<T, const N: usize> {
     center: Point<T, N>,
     radius: T,
     cached_aabb: AABB<T, N>,
 }
-/// A 2-dimensional hypersphere.
+
+/// A 2-dimensional hypersphere (Circle).
 pub type Circle<T> = Hypersphere<T, 2>;
-/// A 3-dimensional hypersphere.
+/// A 3-dimensional hypersphere (Sphere).
 pub type Sphere<T> = Hypersphere<T, 3>;
 
 impl<T, const N: usize> Hypersphere<T, N>
@@ -26,6 +40,22 @@ where
     T: Float + std::iter::Sum,
 {
     /// Creates a new hypersphere and pre-calculates its bounding box.
+    ///
+    /// # Arguments
+    /// * `center` - The central point of the hypersphere.
+    /// * `radius` - The distance from the center to the surface.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Hypersphere, Bounded};
+    ///
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 5.0);
+    /// let aabb = sphere.aabb();
+    ///
+    /// assert_eq!(aabb.min.coords[0], -5.0);
+    /// assert_eq!(aabb.max.coords[0], 5.0);
+    /// ```
     #[inline]
     pub fn new(center: Point<T, N>, radius: T) -> Self {
         let cached_aabb = Self::compute_aabb(&center, radius);
@@ -52,7 +82,7 @@ where
         }
     }
 
-    /// Returns a reference to the hypersphere's center.
+    /// Returns the hypersphere's center point.
     #[inline]
     pub fn center(&self) -> Point<T, N> {
         self.center
@@ -65,6 +95,9 @@ where
     }
 
     /// Updates the center and performs an incremental O(N) translation of the cached AABB.
+    ///
+    /// This is more efficient than recomputing the AABB from scratch as it only
+    /// applies the displacement vector to the bounding box boundaries.
     pub fn set_center(&mut self, new_center: Point<T, N>) {
         let offset = new_center - self.center;
         self.center = new_center;
@@ -74,6 +107,9 @@ where
     }
 
     /// Updates the radius and expands or contracts the cached AABB radially in O(N).
+    ///
+    /// The update is performed incrementally by adjusting the AABB bounds
+    /// based on the difference between the new and old radius.
     pub fn set_radius(&mut self, new_radius: T) {
         let delta_r = new_radius - self.radius;
         self.radius = new_radius;
@@ -102,9 +138,22 @@ where
 {
     /// Finds the closest point on the hypersphere's surface to a given point `p`.
     ///
-    /// If `p` is at the center of the hypersphere, the projection is undefined.
-    /// In this specific case, the method defaults to projecting the point
-    /// along the positive X-axis (canonical direction).
+    /// If `p` is exactly at the center of the hypersphere, the projection direction
+    /// is mathematically undefined. In this specific case, the method projects the
+    /// point along the positive X-axis (canonical direction).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Hypersphere, SpatialRelation};
+    ///
+    /// let circle = Hypersphere::new(Point::new([0.0, 0.0]), 2.0);
+    /// let p = Point::new([4.0, 0.0]);
+    ///
+    /// let closest = circle.closest_point(&p);
+    /// assert_eq!(closest.coords[0], 2.0);
+    /// assert_eq!(closest.coords[1], 0.0);
+    /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let direction = (*p - self.center).normalize().unwrap_or_else(|| {
             let mut direction = Vector::new([T::zero(); N]);
@@ -115,10 +164,10 @@ where
         self.center + direction * self.radius
     }
 
-    /// Checks if a point `p` lies exactly on the hypersphere's boundary (surface).
+    /// Checks if a point `p` lies exactly on the hypersphere's surface.
     ///
-    /// This method uses `classify_to_zero` to account for floating-point inaccuracies.
-    /// Points strictly inside or outside the surface will return `false`.
+    /// Accounts for floating-point inaccuracies using the engine's internal
+    /// epsilon tolerance via `classify_to_zero`.
     fn contains(&self, p: &Point<T, N>) -> bool {
         let dist_sq = (*p - self.center).magnitude_squared();
         let radius_sq = self.radius * self.radius;
@@ -130,16 +179,22 @@ where
 
     /// Checks if a point `p` is contained within the hypersphere's volume.
     ///
-    /// Returns `true` if the distance from the center to `p` is less than or
-    /// equal to the radius (including the boundary).
+    /// Returns `true` if the point is inside or exactly on the boundary.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Hypersphere, SpatialRelation};
+    ///
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 1.0);
+    ///
+    /// assert!(sphere.is_inside(&Point::new([0.5, 0.0, 0.0])));
+    /// assert!(!sphere.is_inside(&Point::new([1.5, 0.0, 0.0])));
+    /// ```
     fn is_inside(&self, p: &Point<T, N>) -> bool {
         let dist_sq = (*p - self.center).magnitude_squared();
         let radius_sq = self.radius * self.radius;
 
-        // diff = distance^2 - radius^2
-        // If Negative: inside volume
-        // If Zero: on boundary
-        // If Positive: outside
         match classify_to_zero(dist_sq - radius_sq, None) {
             FloatSign::Positive => false,
             _ => true,
@@ -162,7 +217,7 @@ where
     /// Computes the intersection(s) between this hypersphere and an infinite line.
     ///
     /// This is a convenience method that delegates the geometric calculation to
-    /// [`Line::intersect_sphere`].
+    /// the line's specific intersection logic.
     #[inline]
     pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
         line.intersect_sphere(self)
@@ -170,8 +225,20 @@ where
 
     /// Computes the intersection(s) between this hypersphere and a finite line segment.
     ///
-    /// This is a convenience method that delegates the geometric calculation to
-    /// [`Segment::intersect_sphere`].
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Segment, Hypersphere, IntersectionResult};
+    ///
+    /// let circle = Hypersphere::new(Point::new([0.0, 0.0]), 1.0);
+    /// let seg = Segment::new(Point::new([-2.0, 0.0]), Point::new([2.0, 0.0]));
+    ///
+    /// let result = circle.intersect_segment(&seg);
+    /// if let IntersectionResult::Secant(p1, p2) = result {
+    ///     assert_eq!(p1.coords[0], -1.0);
+    ///     assert_eq!(p2.coords[0], 1.0);
+    /// }
+    /// ```
     #[inline]
     pub fn intersect_segment(&self, segment: &Segment<T, N>) -> IntersectionResult<T, N> {
         segment.intersect_sphere(self)

@@ -6,8 +6,21 @@ use num_traits::Float;
 
 /// An N-dimensional hyperplane defined by a point and a normal vector.
 ///
-/// A hyperplane is the set of all points P such that (P - origin) · normal = 0.
-/// In 3D, this is a standard infinite plane.
+/// A hyperplane represents the set of all points P such that the dot product 
+/// of (P - origin) and the normal vector is zero. In 3D space, this defines 
+/// an infinite flat surface.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::{Point, Vector, Hyperplane};
+///
+/// let origin = Point::new([0.0, 0.0, 0.0]);
+/// let normal = Vector::new([0.0, 1.0, 0.0]); // Y-axis normal (horizontal plane)
+/// let plane = Hyperplane::new(origin, normal);
+///
+/// assert_eq!(plane.normal().coords[1], 1.0);
+/// ```
 pub struct Hyperplane<T, const N: usize> {
     origin: Point<T, N>,
     normal: Vector<T, N>, // Always kept normalized
@@ -17,7 +30,20 @@ impl<T, const N: usize> Hyperplane<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Creates a new hyperplane. Returns None if the normal vector is null.
+    /// Creates a new hyperplane. 
+    ///
+    /// If the provided normal vector is null (zero length), the hyperplane 
+    /// defaults to a canonical unit vector [1, 0, ..., 0] to maintain 
+    /// geometric validity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hyperplane};
+    ///
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0]), Vector::new([0.0, 5.0]));
+    /// assert_eq!(plane.normal().coords[1], 1.0); // Normalized automatically
+    /// ```
     pub fn new(origin: Point<T, N>, normal: Vector<T, N>) -> Self {
         Self {
             origin,
@@ -52,10 +78,6 @@ where
     }
 
     /// Internal helper to ensure the normal vector is normalized.
-    ///
-    /// Fallback strategy: If normalization fails (e.g., zero vector),
-    /// a default unit vector [1, 0, ..., 0] is returned to maintain
-    /// geometric invariants.
     fn normal_or_default(v: &Vector<T, N>) -> Vector<T, N> {
         v.normalize().unwrap_or_else(|| {
             let mut default = Vector {
@@ -67,6 +89,20 @@ where
     }
 
     /// Calculates the signed distance from a point to the hyperplane.
+    ///
+    /// The sign indicates which side of the plane the point is on relative 
+    /// to the normal vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hyperplane};
+    ///
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0]), Vector::new([0.0, 1.0]));
+    /// let p = Point::new([0.0, 5.0]);
+    ///
+    /// assert_eq!(plane.signed_distance(&p), 5.0);
+    /// ```
     #[inline]
     pub fn signed_distance(&self, p: &Point<T, N>) -> T {
         (*p - self.origin).dot(&self.normal)
@@ -77,7 +113,9 @@ impl<T, const N: usize> SpatialRelation<T, N> for Hyperplane<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Projects a point p onto the hyperplane.
+    /// Projects a point `p` onto the hyperplane.
+    ///
+    /// This returns the closest point on the plane to the given point.
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let d = self.signed_distance(p);
         *p - self.normal * d
@@ -91,8 +129,9 @@ where
         }
     }
 
-    /// For an infinite hyperplane, "inside" is defined by the half-space
-    /// pointed to by the normal vector.
+    /// Defines "inside" as the half-space opposite to the normal vector direction.
+    ///
+    /// Points with a negative or zero signed distance are considered inside.
     fn is_inside(&self, p: &Point<T, N>) -> bool {
         self.signed_distance(p) <= T::zero()
     }
@@ -104,10 +143,23 @@ where
 {
     /// Intersects a line segment with the hyperplane.
     ///
-    /// Returns:
-    /// - IntersectionResult::Single(p) if the segment crosses the plane.
-    /// - IntersectionResult::None if parallel or out of bounds [0, 1].
-    /// - IntersectionResult::Collinear if the segment lies entirely on the plane.
+    /// # Returns
+    /// - `IntersectionResult::Single(p)`: The segment crosses the plane at point `p`.
+    /// - `IntersectionResult::None`: The segment is parallel (and not on the plane) or does not reach it.
+    /// - `IntersectionResult::Collinear`: The entire segment lies on the plane.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hyperplane, Segment, IntersectionResult};
+    ///
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0]), Vector::new([0.0, 1.0]));
+    /// let segment = Segment::new(Point::new([0.0, -1.0]), Point::new([0.0, 1.0]));
+    ///
+    /// if let IntersectionResult::Single(p) = plane.intersect_segment(&segment) {
+    ///     assert_eq!(p.coords[1], 0.0);
+    /// }
+    /// ```
     pub fn intersect_segment(&self, segment: &Segment<T, N>) -> IntersectionResult<T, N> {
         let d_dot_n = segment.delta().dot(&self.normal);
 
@@ -120,7 +172,7 @@ where
             };
         }
 
-        // t = (origin - start) · normal / (delta · normal)
+        // Parametric intersection: t = (origin - start) · normal / (delta · normal)
         let t = (self.origin - segment.start()).dot(&self.normal) / d_dot_n;
 
         if t >= -T::epsilon() && t <= T::one() + T::epsilon() {
