@@ -1,6 +1,6 @@
 use crate::{
-    AABB, Bounded, EuclideanVector, FloatSign, Hypersphere, IntersectionResult, Point,
-    SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
+    AABB, Bounded, EuclideanVector, FloatSign, Hyperplane, Hypersphere, IntersectionResult, Line,
+    Point, SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
 };
 use num_traits::Float;
 
@@ -182,11 +182,11 @@ where
     /// let circle = Hypersphere::new(Point::new([0.0, 0.0]), 2.0);
     /// let segment = Segment::new(Point::new([-5.0, 0.0]), Point::new([0.0, 0.0]));
     ///
-    /// if let IntersectionResult::Single(p) = segment.intersect_sphere(&circle) {
+    /// if let IntersectionResult::Single(p) = segment.intersect_hypersphere(&circle) {
     ///     assert_eq!(p.coords[0], -2.0);
     /// }
     /// ```
-    pub fn intersect_sphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
+    pub fn intersect_hypersphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
         let mag_sq = self.length_squared();
         if mag_sq <= T::zero() {
             return IntersectionResult::None;
@@ -230,6 +230,157 @@ where
             }
         }
     }
+
+    /// Computes the intersection between this segment and a hyperplane.
+    ///
+    /// Delegates to [`Hyperplane::intersect_segment`]. The segment is treated
+    /// as a finite line; the result depends on whether it crosses the plane,
+    /// is parallel to it, or lies entirely on it.
+    ///
+    /// # Returns
+    /// - `IntersectionResult::Single(p)`: The segment crosses the hyperplane at point `p`.
+    /// - `IntersectionResult::None`: The segment is parallel (and not on the plane) or does not reach it.
+    /// - `IntersectionResult::Collinear`: The entire segment lies on the hyperplane.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hyperplane, Segment, IntersectionResult};
+    ///
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0]), Vector::new([0.0, 1.0]));
+    /// let segment = Segment::new(Point::new([0.0, -1.0]), Point::new([0.0, 1.0]));
+    ///
+    /// if let IntersectionResult::Single(p) = segment.intersect_hyperplane(&plane) {
+    ///     assert_eq!(p.coords[1], 0.0);
+    /// }
+    /// ```
+    #[inline]
+    pub fn intersect_hyperplane(&self, hyperplane: &Hyperplane<T, N>) -> IntersectionResult<T, N> {
+        hyperplane.intersect_segment(self)
+    }
+
+    /// Computes the intersection between this segment and an infinite line.
+    ///
+    /// Delegates to [`Line::intersect_segment`]. The result is a point only if the
+    /// line meets the segment within its finite bounds.
+    #[inline]
+    pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
+        line.intersect_segment(self)
+    }
+
+    /// Computes the intersection between this segment and another segment in N-dimensional space.
+    ///
+    /// Uses a parametric formulation and Cramer's rule for non-parallel segments;
+    /// for parallel or collinear segments, the overlap is computed in parameter
+    /// space and clamped to `[0, 1]`. The AABB broad-phase is applied only when
+    /// segments are not parallel, to avoid false rejections for collinear segments
+    /// with degenerate AABBs on the same line.
+    ///
+    /// # Returns
+    /// - `IntersectionResult::None`: The segments do not intersect (parallel and separated, or skew).
+    /// - `IntersectionResult::Single(p)`: The segments intersect at exactly one point `p` (crossing or touching at an endpoint).
+    /// - `IntersectionResult::Collinear`: The segments are collinear and overlap over a positive length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Segment, IntersectionResult};
+    ///
+    /// let s1 = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
+    /// let s2 = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
+    ///
+    /// if let IntersectionResult::Single(p) = s1.intersect_segment(&s2) {
+    ///     assert_eq!(p.coords[0], 5.0);
+    ///     assert_eq!(p.coords[1], 5.0);
+    /// }
+    /// ```
+    pub fn intersect_segment(&self, other: &Segment<T, N>) -> IntersectionResult<T, N> {
+        let v_diff = self.start - other.start; // P1 - P2
+        let a = self.mag_sq; // V1 · V1
+        let b = self.delta.dot(&other.delta); // V1 · V2
+        let c = other.mag_sq; // V2 · V2
+        let e = other.delta.dot(&v_diff); // V2 · (P1 - P2)
+        let f = self.delta.dot(&v_diff); // V1 · (P1 - P2)
+
+        let det = b * b - a * c;
+
+        match classify_to_zero(det, None) {
+            // Case: Segments are parallel (possibly collinear)
+            // Do not use AABB broad-phase here: degenerate AABBs on the same line
+            // (e.g. both y=0) make intersects() return false due to <= comparison.
+            FloatSign::Zero => {
+                // Correct projection: t = (P2 - P1) · V1 / |V1|² = -f / a
+                let t_proj = if !matches!(classify_to_zero(a, None), FloatSign::Zero) {
+                    -f / a
+                } else {
+                    T::zero()
+                };
+                let closest_on_line = self.start + self.delta * t_proj;
+                let dist_to_line_sq = (other.start - closest_on_line).magnitude_squared();
+
+                if let FloatSign::Zero = classify_to_zero(dist_to_line_sq, None) {
+                    // Lines are collinear. Find range of 'other' in 'self' space [t0, t1]
+                    let t0 = -f / a;
+                    let t1 = (b - f) / a;
+
+                    let t_min = if t0 < t1 { t0 } else { t1 };
+                    let t_max = if t0 > t1 { t0 } else { t1 };
+
+                    // Clamp intersection to [0, 1] using Apollonius classification
+                    let zero = T::zero();
+                    let one = T::one();
+
+                    let overlap_min = if let FloatSign::Negative = classify_to_zero(t_min, None) {
+                        zero
+                    } else {
+                        t_min
+                    };
+                    let overlap_max =
+                        if let FloatSign::Positive = classify_to_zero(t_max - one, None) {
+                            one
+                        } else {
+                            t_max
+                        };
+
+                    // Compare clamped endpoints to determine result
+                    match classify_to_zero(overlap_max - overlap_min, None) {
+                        FloatSign::Positive => IntersectionResult::Collinear,
+                        FloatSign::Zero => IntersectionResult::Single(self.at(overlap_min)),
+                        FloatSign::Negative => IntersectionResult::None,
+                    }
+                } else {
+                    IntersectionResult::None
+                }
+            }
+            // Case: Segments are not parallel — safe to use AABB broad-phase
+            _ => {
+                if !self.aabb().intersects(&other.aabb()) {
+                    return IntersectionResult::None;
+                }
+                // Solve 2x2 system using Cramer's rule
+                let t = (f * c - e * b) / det;
+                let s = (b * f - a * e) / det;
+
+                let one = T::one();
+
+                // Check if t and s are within [0, 1] using classify_to_zero
+                let t_valid = !matches!(classify_to_zero(t, None), FloatSign::Negative)
+                    && !matches!(classify_to_zero(t - one, None), FloatSign::Positive);
+                let s_valid = !matches!(classify_to_zero(s, None), FloatSign::Negative)
+                    && !matches!(classify_to_zero(s - one, None), FloatSign::Positive);
+
+                if t_valid && s_valid {
+                    let p1 = self.at(t);
+                    let p2 = other.at(s);
+
+                    if let FloatSign::Zero = classify_to_zero((p2 - p1).magnitude_squared(), None) {
+                        return IntersectionResult::Single(p1);
+                    }
+                }
+                IntersectionResult::None
+            }
+        }
+    }
 }
 
 impl<T, const N: usize> SpatialRelation<T, N> for Segment<T, N>
@@ -269,7 +420,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Point;
     use approx::assert_relative_eq;
 
     #[test]
@@ -401,7 +551,7 @@ mod tests {
         let seg = Segment::new(Point::new([6.0, 0.0]), Point::new([10.0, 0.0]));
 
         assert!(matches!(
-            seg.intersect_sphere(&sphere),
+            seg.intersect_hypersphere(&sphere),
             IntersectionResult::None
         ));
     }
@@ -413,7 +563,7 @@ mod tests {
 
         // No intersection with the BOUNDARY
         assert!(matches!(
-            seg.intersect_sphere(&sphere),
+            seg.intersect_hypersphere(&sphere),
             IntersectionResult::None
         ));
     }
@@ -424,7 +574,7 @@ mod tests {
         // Starts inside (0,0), ends outside (10,0) -> Should hit boundary at (5,0)
         let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
 
-        if let IntersectionResult::Single(p) = seg.intersect_sphere(&sphere) {
+        if let IntersectionResult::Single(p) = seg.intersect_hypersphere(&sphere) {
             assert_relative_eq!(p.coords[0], 5.0, epsilon = 1e-6);
             assert_relative_eq!(p.coords[1], 0.0, epsilon = 1e-6);
         } else {
@@ -437,7 +587,7 @@ mod tests {
         let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
         let seg = Segment::new(Point::new([-10.0, 0.0]), Point::new([10.0, 0.0]));
 
-        if let IntersectionResult::Secant(p1, p2) = seg.intersect_sphere(&sphere) {
+        if let IntersectionResult::Secant(p1, p2) = seg.intersect_hypersphere(&sphere) {
             let x1 = p1.coords[0];
             let x2 = p2.coords[0];
             assert!((x1.abs() - 5.0).abs() < 1e-6);
@@ -453,7 +603,7 @@ mod tests {
         let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
         let seg = Segment::new(Point::new([-10.0, 5.0]), Point::new([10.0, 5.0]));
 
-        if let IntersectionResult::Tangent(p) = seg.intersect_sphere(&sphere) {
+        if let IntersectionResult::Tangent(p) = seg.intersect_hypersphere(&sphere) {
             assert_relative_eq!(p.coords[0], 0.0, epsilon = 1e-6);
             assert_relative_eq!(p.coords[1], 5.0, epsilon = 1e-6);
         } else {
@@ -468,7 +618,7 @@ mod tests {
         // orthogonal projection (0, 1) is outside the segment [4, 10].
         let seg = Segment::new(Point::new([4.0, 1.0]), Point::new([10.0, 1.0]));
 
-        if let IntersectionResult::Single(p) = seg.intersect_sphere(&sphere) {
+        if let IntersectionResult::Single(p) = seg.intersect_hypersphere(&sphere) {
             // The real intersection is at x = sqrt(r^2 - y^2) = sqrt(25 - 1) = sqrt(24)
             let expected_x = 24.0f64.sqrt();
 
@@ -535,5 +685,46 @@ mod tests {
         // AABB should still be (0,0) to (10,10)
         assert_relative_eq!(aabb.min.coords[0], 0.0);
         assert_relative_eq!(aabb.max.coords[0], 10.0);
+    }
+
+    #[test]
+    fn test_segment_segment_intersection_cross() {
+        let s1 = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
+        let s2 = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
+
+        if let IntersectionResult::Single(p) = s1.intersect_segment(&s2) {
+            assert_relative_eq!(p.coords[0], 5.0);
+            assert_relative_eq!(p.coords[1], 5.0);
+        } else {
+            panic!("Expected single intersection at (5, 5)");
+        }
+    }
+
+    #[test]
+    fn test_segment_segment_collinear_overlap() {
+        let s1 = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
+        let s2 = Segment::new(Point::new([5.0, 0.0]), Point::new([15.0, 0.0]));
+
+        assert_eq!(s1.intersect_segment(&s2), IntersectionResult::Collinear);
+    }
+
+    #[test]
+    fn test_segment_segment_touch_at_endpoint() {
+        let s1 = Segment::new(Point::new([0.0, 0.0]), Point::new([5.0, 0.0]));
+        let s2 = Segment::new(Point::new([5.0, 0.0]), Point::new([10.0, 0.0]));
+
+        if let IntersectionResult::Single(p) = s1.intersect_segment(&s2) {
+            assert_relative_eq!(p.coords[0], 5.0);
+        } else {
+            panic!("Expected single point intersection at endpoint (5, 0)");
+        }
+    }
+
+    #[test]
+    fn test_segment_segment_parallel_no_intersection() {
+        let s1 = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
+        let s2 = Segment::new(Point::new([0.0, 1.0]), Point::new([10.0, 1.0]));
+
+        assert_eq!(s1.intersect_segment(&s2), IntersectionResult::None);
     }
 }

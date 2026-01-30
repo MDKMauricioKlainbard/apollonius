@@ -1,17 +1,16 @@
 use crate::{
-    EuclideanVector, FloatSign, IntersectionResult, Point, Segment, SpatialRelation, Vector,
-    VectorMetricSquared, classify_to_zero,
+    EuclideanVector, FloatSign, Hypersphere, IntersectionResult, Line, Point, Segment,
+    SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
 };
 use num_traits::Float;
 
 /// An N-dimensional hyperplane defined by a point and a normal vector.
 ///
-/// A hyperplane represents the set of all points P such that the dot product 
-/// of (P - origin) and the normal vector is zero. In 3D space, this defines 
+/// A hyperplane represents the set of all points P such that the dot product
+/// of (P - origin) and the normal vector is zero. In 3D space, this defines
 /// an infinite flat surface.
 ///
 /// # Examples
-///
 /// ```
 /// use apollonius::{Point, Vector, Hyperplane};
 ///
@@ -30,10 +29,10 @@ impl<T, const N: usize> Hyperplane<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Creates a new hyperplane. 
+    /// Creates a new hyperplane.
     ///
-    /// If the provided normal vector is null (zero length), the hyperplane 
-    /// defaults to a canonical unit vector [1, 0, ..., 0] to maintain 
+    /// If the provided normal vector is null (zero length), the hyperplane
+    /// defaults to a canonical unit vector [1, 0, ..., 0] to maintain
     /// geometric validity.
     ///
     /// # Examples
@@ -90,7 +89,7 @@ where
 
     /// Calculates the signed distance from a point to the hyperplane.
     ///
-    /// The sign indicates which side of the plane the point is on relative 
+    /// The sign indicates which side of the plane the point is on relative
     /// to the normal vector.
     ///
     /// # Examples
@@ -180,6 +179,96 @@ where
         } else {
             IntersectionResult::None
         }
+    }
+
+    /// Calculates the intersection between this hyperplane and a line.
+    ///
+    /// This method delegates the calculation to the line's intersection logic,
+    /// providing a symmetrical API for spatial queries.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Line, Hyperplane, IntersectionResult};
+    ///
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    /// let line = Line::new(Point::new([0.0, 0.0, 10.0]), Vector::new([0.0, 0.0, -1.0]));
+    ///
+    /// // Intersecting from the plane's perspective
+    /// if let IntersectionResult::Single(p) = plane.intersect_line(&line) {
+    ///     assert_eq!(p, Point::new([0.0, 0.0, 0.0]));
+    /// }
+    /// ```
+    #[inline]
+    pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
+        line.intersect_hyperplane(self)
+    }
+
+    /// Computes the intersection of this hyperplane with a hypersphere.
+    ///
+    /// This is the symmetric counterpart to [`Hypersphere::intersect_hyperplane`].
+    /// It treats the hyperplane as a boundary where the direction of the normal
+    /// vector defines the "outside" (positive half-space) and the opposite direction
+    /// defines the "inside" (negative half-space).
+    ///
+    /// # Delegation and Symmetry
+    ///
+    /// This method delegates the calculation to the sphere's implementation to ensure
+    /// mathematical consistency. It is provided here to allow for a more natural
+    /// API when the hyperplane is the primary object of the query.
+    ///
+    /// # Return Semantics
+    ///
+    /// - **[`None`](crate::IntersectionResult::None)**: The sphere is located entirely
+    ///   in the positive half-space (the side the normal points towards).
+    /// - **[`Tangent(p)`](crate::IntersectionResult::Tangent)**: The sphere's surface
+    ///   grazes the hyperplane at exactly one point `p`.
+    /// - **[`HalfSpacePenetration(depth)`](crate::IntersectionResult::HalfSpacePenetration)**:
+    ///   The sphere has crossed the plane and is partially or fully submerged in the
+    ///   negative half-space. `depth` is the distance from the plane to the furthest
+    ///   point of the sphere inside the half-space.
+    ///
+    ///
+    ///
+    /// # Examples
+    ///
+    /// Detecting a sphere partially submerged in a 3D floor:
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane, IntersectionResult};
+    ///
+    /// // A floor plane at y = 0 with normal pointing up (y+)
+    /// let floor = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 1.0, 0.0]));
+    ///
+    /// // A sphere with radius 10, centered at y = 4 (submerged by 6 units)
+    /// let sphere = Hypersphere::new(Point::new([0.0, 4.0, 0.0]), 10.0);
+    ///
+    /// match floor.intersect_hypersphere(&sphere) {
+    ///     IntersectionResult::HalfSpacePenetration(depth) => {
+    ///         // depth = radius - signed_distance = 10 - 4 = 6
+    ///         assert!(((depth - 6.0) as f64).abs() < 1e-6);
+    ///     }
+    ///     _ => panic!("Expected penetration for submerged sphere"),
+    /// }
+    /// ```
+    ///
+    /// Grazing contact (Tangent):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane, IntersectionResult};
+    ///
+    /// let wall = Hyperplane::new(Point::new([10.0, 0.0, 0.0]), Vector::new([1.0, 0.0, 0.0]));
+    /// let sphere = Hypersphere::new(Point::new([5.0, 0.0, 0.0]), 5.0);
+    ///
+    /// if let IntersectionResult::Tangent(p) = wall.intersect_hypersphere(&sphere) {
+    ///     assert_eq!(p.coords[0], 10.0);
+    /// } else {
+    ///     panic!("Expected Tangent contact at x = 10");
+    /// }
+    /// ```
+    #[inline]
+    pub fn intersect_hypersphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
+        sphere.intersect_hyperplane(self)
     }
 }
 

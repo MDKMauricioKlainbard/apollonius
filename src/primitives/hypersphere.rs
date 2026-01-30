@@ -1,6 +1,6 @@
 use crate::{
-    AABB, Bounded, EuclideanVector, FloatSign, IntersectionResult, Line, Point, Segment,
-    SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
+    AABB, Bounded, EuclideanVector, FloatSign, Hyperplane, IntersectionResult, Line, Point,
+    Segment, SpatialRelation, Vector, VectorMetricSquared, classify_to_zero,
 };
 use num_traits::Float;
 
@@ -220,7 +220,7 @@ where
     /// the line's specific intersection logic.
     #[inline]
     pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
-        line.intersect_sphere(self)
+        line.intersect_hypersphere(self)
     }
 
     /// Computes the intersection(s) between this hypersphere and a finite line segment.
@@ -241,7 +241,198 @@ where
     /// ```
     #[inline]
     pub fn intersect_segment(&self, segment: &Segment<T, N>) -> IntersectionResult<T, N> {
-        segment.intersect_sphere(self)
+        segment.intersect_hypersphere(self)
+    }
+
+    /// Computes the intersection of this hypersphere with a hyperplane (plane).
+    ///
+    /// The result describes whether the sphere lies entirely on one side of the plane,
+    /// is tangent to it (touching at exactly one point), or penetrates the negative
+    /// half-space (the side opposite to the plane's normal).
+    ///
+    /// # Return semantics: `Tangent` vs `Single`
+    ///
+    /// When the sphere touches the plane at exactly one point (tangent contact),
+    /// this method returns **[`IntersectionResult::Tangent`](crate::IntersectionResult::Tangent)(p)**,
+    /// where `p` is that contact point (the orthogonal projection of the sphere's center
+    /// onto the plane). It **never** returns [`Single`](crate::IntersectionResult::Single)
+    /// for this query: `Single` is reserved for other primitives (e.g. segment crossing
+    /// a boundary). Use `Tangent` to detect grazing contact between sphere and plane.
+    ///
+    /// # Returns
+    ///
+    /// - **[`None`](crate::IntersectionResult::None)**: The sphere lies entirely in the
+    ///   positive half-space (on the side of the plane's normal). No contact with the plane.
+    /// - **[`Tangent(p)`](crate::IntersectionResult::Tangent)**: The sphere is tangent to the
+    ///   plane at point `p` (exactly one point of contact). `p` is the plane's closest point
+    ///   to the sphere center.
+    /// - **[`HalfSpacePenetration(depth)`](crate::IntersectionResult::HalfSpacePenetration)**: The
+    ///   sphere crosses into or lies inside the negative half-space. `depth` is the penetration
+    ///   depth along the plane normal (distance from the plane to the furthest point of the
+    ///   sphere inside the half-space).
+    ///
+    /// # Examples
+    ///
+    /// Tangent contact (sphere touching the plane at one point):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane, IntersectionResult};
+    ///
+    /// // Sphere centered at (0, 0, 5) with radius 5 — touches plane z = 0 at (0, 0, 0)
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 5.0]), 5.0);
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    ///
+    /// match sphere.intersect_hyperplane(&plane) {
+    ///     IntersectionResult::Tangent(p) => {
+    ///         assert_eq!(p.coords[0], 0.0);
+    ///         assert_eq!(p.coords[1], 0.0);
+    ///         assert_eq!(p.coords[2], 0.0);
+    ///     }
+    ///     _ => panic!("expected Tangent for tangent sphere-plane contact"),
+    /// }
+    /// ```
+    ///
+    /// No intersection (sphere entirely above the plane):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane, IntersectionResult};
+    ///
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 10.0]), 2.0);
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    ///
+    /// assert!(matches!(sphere.intersect_hyperplane(&plane), IntersectionResult::None));
+    /// ```
+    ///
+    /// Penetration (sphere crosses the plane):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane, IntersectionResult};
+    ///
+    /// // Sphere center at z = 2, radius 5 → penetrates plane z = 0 by depth 3
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 2.0]), 5.0);
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    ///
+    /// if let IntersectionResult::HalfSpacePenetration(depth) = sphere.intersect_hyperplane(&plane) {
+    ///     assert!(((depth - 3.0) as f64).abs() < 1e-6);
+    /// } else {
+    ///     panic!("expected HalfSpacePenetration");
+    /// }
+    /// ```
+    pub fn intersect_hyperplane(&self, plane: &Hyperplane<T, N>) -> IntersectionResult<T, N> {
+        let d = plane.signed_distance(&self.center);
+        let r = self.radius;
+
+        // Check for tangency first
+        if let FloatSign::Zero = classify_to_zero(d.abs() - r, None) {
+            return IntersectionResult::Tangent(plane.closest_point(&self.center));
+        }
+
+        match classify_to_zero(d - r, None) {
+            // Sphere is completely in the positive half-space (outside)
+            FloatSign::Positive => IntersectionResult::None,
+            // Sphere is at least partially in the negative half-space (inside/overlapping)
+            _ => {
+                // Penetration depth is the distance from the furthest point
+                // inside the half-space to the plane boundary.
+                IntersectionResult::HalfSpacePenetration(r - d)
+            }
+        }
+    }
+
+    /// Returns the fraction of the hypersphere's volume that lies in the plane's negative half-space.
+    ///
+    /// "Submerged" means the part of the sphere on the side **opposite** to the plane's normal
+    /// (the negative signed-distance side). The ratio is in **[0.0, 1.0]**:
+    /// - **0.0**: the sphere lies entirely in the positive half-space (none submerged).
+    /// - **0.5**: the plane passes through the center (half the volume on each side).
+    /// - **1.0**: the sphere lies entirely in the negative half-space (fully submerged).
+    ///
+    /// In 2D this is the area ratio of the circular segment; in 3D the volume ratio of the
+    /// spherical cap. For N > 3 a linear height-based approximation is used.
+    ///
+    /// # Examples
+    ///
+    /// Center on the plane (half submerged):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane};
+    ///
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 10.0);
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    ///
+    /// let ratio = sphere.submerged_ratio(&plane);
+    /// assert!(((ratio - 0.5) as f64).abs() < 1e-6);
+    /// ```
+    ///
+    /// Fully submerged (sphere entirely below the plane):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane};
+    ///
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, -20.0]), 10.0);
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    ///
+    /// let ratio = sphere.submerged_ratio(&plane);
+    /// assert!(((ratio - 1.0) as f64).abs() < 1e-6);
+    /// ```
+    ///
+    /// Not submerged (sphere entirely above the plane):
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Hypersphere, Hyperplane};
+    ///
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 20.0]), 10.0);
+    /// let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+    ///
+    /// let ratio = sphere.submerged_ratio(&plane);
+    /// assert!(((ratio - 0.0) as f64).abs() < 1e-6);
+    /// ```
+    pub fn submerged_ratio(&self, plane: &Hyperplane<T, N>) -> T {
+        let d = plane.signed_distance(&self.center);
+        let r = self.radius;
+
+        // Clamp signed distance to [-r, r] to handle fully submerged or fully outside cases
+        let d_clamped = if let FloatSign::Positive = classify_to_zero(d - r, None) {
+            r
+        } else if let FloatSign::Negative = classify_to_zero(d + r, None) {
+            -r
+        } else {
+            d
+        };
+
+        Self::compute_ratio(d_clamped, r)
+    }
+}
+
+/// Internal trait to encapsulate N-dimensional volume ratio logic.
+trait SubmergedVolumeScale<T> {
+    fn compute_ratio(d: T, r: T) -> T;
+}
+
+impl<T: Float, const N: usize> SubmergedVolumeScale<T> for Hypersphere<T, N> {
+    fn compute_ratio(d: T, r: T) -> T {
+        let x = d / r; // Normalized distance to center [-1, 1]
+
+        match N {
+            2 => {
+                // Area of a circular segment ratio (2D)
+                let pi = T::from(std::f64::consts::PI).unwrap();
+                (x.acos() - x * (T::one() - x * x).sqrt()) / pi
+            }
+            3 => {
+                // Volume of a spherical cap ratio (3D)
+                let three = T::from(3.0).unwrap();
+                let two = T::from(2.0).unwrap();
+                let four = T::from(4.0).unwrap();
+                (x.powi(3) - three * x + two) / four
+            }
+            _ => {
+                // General N-dimensional linear approximation.
+                // As N increases, the volume concentrates near the equator.
+                // This linear height approximation serves as a base fallback.
+                (r - d) / (T::from(2.0).unwrap() * r)
+            }
+        }
     }
 }
 
@@ -446,5 +637,47 @@ mod tests {
         // Center 10, Radius 2 -> Min: 8, Max: 12
         assert_relative_eq!(aabb.min.coords[0], 8.0);
         assert_relative_eq!(aabb.max.coords[1], 12.0);
+    }
+
+    #[test]
+    fn test_half_space_penetration_depth() {
+        // Sphere of radius 5 at z=2. Plane at z=0 (normal [0,0,1])
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0, 2.0]), 5.0);
+        let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+
+        // Signed distance is 2.0. Depth = 5.0 - 2.0 = 3.0
+        if let IntersectionResult::HalfSpacePenetration(depth) = sphere.intersect_hyperplane(&plane)
+        {
+            assert!((depth - 3.0).abs() < 1e-6);
+        } else {
+            panic!("Expected HalfSpacePenetration");
+        }
+    }
+
+    #[test]
+    fn test_submerged_ratio_3d() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 10.0);
+        let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+
+        // Case 1: Center exactly on plane -> 50% submerged
+        let ratio_half = sphere.submerged_ratio(&plane);
+        assert!((ratio_half - 0.5).abs() < 1e-6);
+
+        // Case 2: Fully submerged (center at z = -20)
+        let deep_sphere = Hypersphere::new(Point::new([0.0, 0.0, -20.0]), 10.0);
+        assert!((deep_sphere.submerged_ratio(&plane) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_tangency_case() {
+        let sphere = Hypersphere::new(Point::new([0.0, 0.0, 5.0]), 5.0);
+        let plane = Hyperplane::new(Point::new([0.0, 0.0, 0.0]), Vector::new([0.0, 0.0, 1.0]));
+
+        match sphere.intersect_hyperplane(&plane) {
+            IntersectionResult::Tangent(p) => {
+                assert_eq!(p, Point::new([0.0, 0.0, 0.0]));
+            }
+            _ => panic!("Expected Tangent point for tangency"),
+        }
     }
 }

@@ -125,4 +125,8 @@ pub enum IntersectionResult<T, const N: usize> {
     /// Usually occurs when a finite primitive (like a segment) starts
     /// outside and ends inside another entity's volume.
     Single(Point<T, N>),
+
+    /// The primitive penetrates the half-space defined by a boundary (e.g., hyperplane).
+    /// The associated value represents the penetration depth along the normal.
+    HalfSpacePenetration(T),
 }
