@@ -86,7 +86,16 @@ impl<T, const N: usize> Vector<T, N>
 where
     T: Copy,
 {
-    /// Creates a new Vector from an array of coordinates.
+    /// Creates a new vector from an array of coordinates.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector;
+    ///
+    /// let v = Vector::new([1.0, 2.0, 3.0]);
+    /// assert_eq!(v.coords, [1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
@@ -98,6 +107,17 @@ where
     T: Sub<Output = T> + Copy,
 {
     /// Creates a vector that represents the displacement from an initial to a final point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector};
+    ///
+    /// let a = Point::new([1.0, 2.0]);
+    /// let b = Point::new([4.0, 6.0]);
+    /// let v: Vector<f64, 2> = Vector::from((&a, &b));
+    /// assert_eq!(v.coords, [3.0, 4.0]);
+    /// ```
     #[inline]
     fn from((initial, final_point): (&Point<T, N>, &Point<T, N>)) -> Self {
         let coords = std::array::from_fn(|i| final_point.coords[i] - initial.coords[i]);
@@ -109,7 +129,17 @@ impl<T, const N: usize> From<&Point<T, N>> for Vector<T, N>
 where
     T: Sub<Output = T> + Copy,
 {
-    /// Converts a reference to a Point into a Vector relative to the origin.
+    /// Converts a reference to a point into a vector from the origin to that point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector};
+    ///
+    /// let p = Point::new([2.0, 3.0]);
+    /// let v = Vector::from(&p);
+    /// assert_eq!(v.coords, [2.0, 3.0]);
+    /// ```
     #[inline]
     fn from(final_point: &Point<T, N>) -> Self {
         Vector {
@@ -120,6 +150,15 @@ where
 
 impl<T> From<(T, T)> for Vector2D<T> {
     /// Converts a 2-element tuple into a [`Vector2D`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector2D;
+    ///
+    /// let v = Vector2D::from((1.0, 2.0));
+    /// assert_eq!(v.coords, [1.0, 2.0]);
+    /// ```
     #[inline]
     fn from(value: (T, T)) -> Self {
         let (x, y) = value;
@@ -129,6 +168,15 @@ impl<T> From<(T, T)> for Vector2D<T> {
 
 impl<T> From<(T, T, T)> for Vector3D<T> {
     /// Converts a 3-element tuple into a [`Vector3D`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector3D;
+    ///
+    /// let v = Vector3D::from((1.0, 2.0, 3.0));
+    /// assert_eq!(v.coords, [1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     fn from(value: (T, T, T)) -> Self {
         let (x, y, z) = value;
@@ -143,6 +191,17 @@ where
     type Output = Vector<T, N>;
 
     /// Performs vector addition component-wise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector;
+    ///
+    /// let u = Vector::new([1.0, 2.0]);
+    /// let v = Vector::new([3.0, 4.0]);
+    /// let w = u + v;
+    /// assert_eq!(w.coords, [4.0, 6.0]);
+    /// ```
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] + rhs.coords[i]);
@@ -157,6 +216,17 @@ where
     type Output = Vector<T, N>;
 
     /// Performs vector subtraction component-wise.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector;
+    ///
+    /// let u = Vector::new([4.0, 5.0]);
+    /// let v = Vector::new([1.0, 2.0]);
+    /// let w = u - v;
+    /// assert_eq!(w.coords, [3.0, 3.0]);
+    /// ```
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
@@ -237,7 +307,16 @@ impl<T, const N: usize> VectorMetricSquared<T> for Vector<T, N>
 where
     T: Mul<Output = T> + std::iter::Sum + Copy,
 {
-    /// Returns the squared magnitude of the vector.
+    /// Returns the squared magnitude (squared length) of the vector.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Vector, VectorMetricSquared};
+    ///
+    /// let v = Vector::new([3.0, 4.0]);
+    /// assert_eq!(v.magnitude_squared(), 25.0);
+    /// ```
     #[inline]
     fn magnitude_squared(&self) -> T {
         self.coords.iter().map(|coord| *coord * *coord).sum()
@@ -269,6 +348,15 @@ where
     T: Float + std::iter::Sum,
 {
     /// Returns the Euclidean magnitude (length) of the vector.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Vector, EuclideanVector};
+    ///
+    /// let v = Vector::new([3.0, 4.0]);
+    /// assert_eq!(v.magnitude(), 5.0);
+    /// ```
     #[inline]
     fn magnitude(&self) -> T {
         self.magnitude_squared().sqrt()

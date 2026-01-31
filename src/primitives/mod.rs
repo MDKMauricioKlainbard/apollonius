@@ -87,6 +87,20 @@ pub trait SpatialRelation<T, const N: usize> {
 }
 
 /// Represents an entity that can be enclosed within an Axis-Aligned Bounding Box.
+///
+/// Implemented by [`Hypersphere`], [`Segment`], and other primitives that cache or
+/// compute an AABB for broad-phase collision detection.
+///
+/// # Examples
+///
+/// ```
+/// use apollonius::{Point, Hypersphere, Bounded};
+///
+/// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 5.0);
+/// let aabb = sphere.aabb();
+/// assert_eq!(aabb.min.coords[0], -5.0);
+/// assert_eq!(aabb.max.coords[0], 5.0);
+/// ```
 pub trait Bounded<T, const N: usize> {
     /// Returns the minimum Axis-Aligned Bounding Box that encloses the entity.
     ///
@@ -98,6 +112,11 @@ pub trait Bounded<T, const N: usize> {
 ///
 /// This enum accounts for the different ways entities can interact in N-dimensional space,
 /// distinguishing between points of contact, boundary crossings, and overlapping structures.
+///
+/// **Note:** Not every intersection method returns every variant. Each method that returns
+/// `IntersectionResult` documents in its `# Returns` section exactly which variants it can
+/// produce (e.g. Line–Hypersphere returns only `None`, `Tangent`, or `Secant`; Segment–Segment
+/// returns only `None`, `Single`, or `Collinear`).
 #[derive(Debug, Clone, PartialEq, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]

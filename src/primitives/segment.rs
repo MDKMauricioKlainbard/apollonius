@@ -171,10 +171,11 @@ where
     /// This method identifies if the segment enters, leaves, or touches the sphere.
     ///
     /// # Returns
-    /// - `IntersectionResult::None`: No intersection within segment bounds.
-    /// - `IntersectionResult::Tangent(p)`: The segment is tangent to the sphere.
-    /// - `IntersectionResult::Secant(p1, p2)`: Both intersection points lie on the segment.
-    /// - `IntersectionResult::Single(p)`: Only one end of the segment is inside the sphere.
+    /// This method returns only the following variants (never `Collinear` or `HalfSpacePenetration`):
+    /// - [`None`](crate::IntersectionResult::None): No intersection within segment bounds.
+    /// - [`Tangent(p)`](crate::IntersectionResult::Tangent): The segment is tangent to the sphere at `p`.
+    /// - [`Secant(p1, p2)`](crate::IntersectionResult::Secant): Both intersection points lie on the segment.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): Exactly one intersection point lies on the segment (e.g. segment enters or exits the sphere).
     ///
     /// # Examples
     ///
@@ -240,9 +241,10 @@ where
     /// is parallel to it, or lies entirely on it.
     ///
     /// # Returns
-    /// - `IntersectionResult::Single(p)`: The segment crosses the hyperplane at point `p`.
-    /// - `IntersectionResult::None`: The segment is parallel (and not on the plane) or does not reach it.
-    /// - `IntersectionResult::Collinear`: The entire segment lies on the hyperplane.
+    /// This method returns only the following variants (never `Tangent`, `Secant`, or `HalfSpacePenetration`):
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The segment crosses the hyperplane at point `p`.
+    /// - [`None`](crate::IntersectionResult::None): The segment is parallel (and not on the plane) or does not reach it.
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The entire segment lies on the hyperplane.
     ///
     /// # Examples
     ///
@@ -265,6 +267,11 @@ where
     ///
     /// Delegates to [`Line::intersect_segment`]. The result is a point only if the
     /// line meets the segment within its finite bounds.
+    ///
+    /// # Returns
+    /// - [`None`](crate::IntersectionResult::None): The line and segment are parallel and separated, or the intersection lies outside the segment.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The line intersects the segment at exactly one point `p`.
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The segment lies entirely on the line.
     #[inline]
     pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
         line.intersect_segment(self)
@@ -279,9 +286,10 @@ where
     /// with degenerate AABBs on the same line.
     ///
     /// # Returns
-    /// - `IntersectionResult::None`: The segments do not intersect (parallel and separated, or skew).
-    /// - `IntersectionResult::Single(p)`: The segments intersect at exactly one point `p` (crossing or touching at an endpoint).
-    /// - `IntersectionResult::Collinear`: The segments are collinear and overlap over a positive length.
+    /// This method returns only the following variants (never `Tangent`, `Secant`, or `HalfSpacePenetration`):
+    /// - [`None`](crate::IntersectionResult::None): The segments do not intersect (parallel and separated, or skew).
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The segments intersect at exactly one point `p` (crossing or touching at an endpoint).
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The segments are collinear and overlap over a positive length.
     ///
     /// # Examples
     ///

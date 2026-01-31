@@ -145,9 +145,10 @@ where
     /// Intersects a line segment with the hyperplane.
     ///
     /// # Returns
-    /// - `IntersectionResult::Single(p)`: The segment crosses the plane at point `p`.
-    /// - `IntersectionResult::None`: The segment is parallel (and not on the plane) or does not reach it.
-    /// - `IntersectionResult::Collinear`: The entire segment lies on the plane.
+    /// This method returns only the following variants (never `Tangent`, `Secant`, or `HalfSpacePenetration`):
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The segment crosses the plane at point `p`.
+    /// - [`None`](crate::IntersectionResult::None): The segment is parallel (and not on the plane) or does not reach it.
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The entire segment lies on the plane.
     ///
     /// # Examples
     ///
@@ -185,8 +186,13 @@ where
 
     /// Calculates the intersection between this hyperplane and a line.
     ///
-    /// This method delegates the calculation to the line's intersection logic,
-    /// providing a symmetrical API for spatial queries.
+    /// This method delegates to [`Line::intersect_hyperplane`], providing a symmetrical API.
+    ///
+    /// # Returns
+    /// This method returns only the following variants (never `Tangent`, `Secant`, or `HalfSpacePenetration`):
+    /// - [`None`](crate::IntersectionResult::None): The line is parallel to the plane and not on it.
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The line lies entirely on the hyperplane.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The line pierces the plane at exactly one point `p`.
     ///
     /// # Examples
     ///
@@ -219,8 +225,9 @@ where
     /// mathematical consistency. It is provided here to allow for a more natural
     /// API when the hyperplane is the primary object of the query.
     ///
-    /// # Return Semantics
+    /// # Returns
     ///
+    /// This method returns only the following variants (never `Single`, `Secant`, or `Collinear`):
     /// - **[`None`](crate::IntersectionResult::None)**: The sphere is located entirely
     ///   in the positive half-space (the side the normal points towards).
     /// - **[`Tangent(p)`](crate::IntersectionResult::Tangent)**: The sphere's surface

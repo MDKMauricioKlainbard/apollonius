@@ -1,10 +1,28 @@
+//! Utilities for robust floating-point comparisons in geometric code.
+//!
+//! This module provides [`FloatSign`] and [`classify_to_zero`] for classifying
+//! values relative to zero with an epsilon tolerance, avoiding brittle `== 0`
+//! checks in the presence of numerical error.
+
 use num_traits::Float;
 
-/// Represents the classification of a floating-point number relative to a zero-tolerance (epsilon).
+/// Classification of a value relative to zero using an epsilon tolerance.
 ///
-/// This is used throughout the engine to handle the inherent imprecision of
-/// floating-point arithmetic in geometric tests (e.g., checking if a point
-/// lies exactly on a plane).
+/// Used throughout the library for robust geometric tests (e.g. whether a point
+/// lies on a plane or a segment is parallel to another). Values whose absolute
+/// value is below the tolerance are treated as [`Zero`](FloatSign::Zero).
+///
+/// # Example
+///
+/// ```
+/// use apollonius::{classify_to_zero, FloatSign};
+///
+/// match classify_to_zero(1e-10, None) {
+///     FloatSign::Positive => {}
+///     FloatSign::Zero => {} // tiny values are treated as zero
+///     FloatSign::Negative => {}
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FloatSign {

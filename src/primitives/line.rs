@@ -61,9 +61,10 @@ where
     /// Computes the intersection(s) between this line and a hypersphere.
     ///
     /// # Returns
-    /// - `IntersectionResult::None`: The line does not intersect the sphere.
-    /// - `IntersectionResult::Tangent(p)`: The line is tangent to the sphere at point `p`.
-    /// - `IntersectionResult::Secant(p1, p2)`: The line enters and leaves the sphere at `p1` and `p2`.
+    /// This method returns only the following variants (never `Single`, `Collinear`, or `HalfSpacePenetration`):
+    /// - [`None`](crate::IntersectionResult::None): The line does not intersect the sphere.
+    /// - [`Tangent(p)`](crate::IntersectionResult::Tangent): The line is tangent to the sphere at point `p`.
+    /// - [`Secant(p1, p2)`](crate::IntersectionResult::Secant): The line enters and leaves the sphere at `p1` and `p2`.
     ///
     /// # Examples
     ///
@@ -99,6 +100,11 @@ where
     ///
     /// The intersection is determined by substituting the parametric equation of the line
     /// `L(t) = P + tV` into the implicit equation of the hyperplane `(X - P0) · n = 0`.
+    ///
+    /// # Returns
+    /// - [`None`](crate::IntersectionResult::None): The line is parallel to the plane and not on it.
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The line lies entirely on the hyperplane.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The line pierces the plane at exactly one point `p`.
     ///
     /// # Mathematical Approach
     /// Solving for `t` gives:
@@ -161,6 +167,11 @@ where
     /// This method finds the points of closest approach between two lines by solving a 2x2
     /// system of equations derived from the condition that the vector connecting the
     /// points must be orthogonal to both line directions.
+    ///
+    /// # Returns
+    /// - [`None`](crate::IntersectionResult::None): The lines are parallel but distinct, or skew (non-parallel and non-intersecting in 3D+).
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The lines coincide.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The lines intersect at exactly one point `p`.
     ///
     /// # Mathematical Approach
     /// Let the lines be defined as `L1(t) = P1 + tV1` and `L2(s) = P2 + sV2`.
@@ -248,9 +259,9 @@ where
     /// [`Self::intersect_line`], with the segment parameter clamped to the finite range.
     ///
     /// # Returns
-    /// - `IntersectionResult::None`: The line and segment are parallel and separated, or the intersection lies outside the segment.
-    /// - `IntersectionResult::Single(p)`: The line intersects the segment at exactly one point `p`.
-    /// - `IntersectionResult::Collinear`: The segment lies entirely on the line.
+    /// - [`None`](crate::IntersectionResult::None): The line and segment are parallel and separated, or the intersection lies outside the segment.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): The line intersects the segment at exactly one point `p`.
+    /// - [`Collinear`](crate::IntersectionResult::Collinear): The segment lies entirely on the line.
     ///
     /// # Examples
     ///

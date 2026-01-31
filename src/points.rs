@@ -60,12 +60,32 @@ pub type Point3D<T> = Point<T, 3>;
 ///
 /// Using squared distance is often preferred for performance-critical
 /// comparisons to avoid the computational cost of the square root operation.
+///
+/// # Example
+///
+/// ```
+/// use apollonius::{Point, MetricSquared};
+///
+/// let a = Point::new([0.0, 0.0]);
+/// let b = Point::new([3.0, 4.0]);
+/// assert_eq!(a.distance_squared(&b), 25.0);
+/// ```
 pub trait MetricSquared<T> {
     /// Calculates the squared Euclidean distance between `self` and `other`.
     fn distance_squared(&self, other: &Self) -> T;
 }
 
 /// Trait for types that can calculate the actual Euclidean distance.
+///
+/// # Example
+///
+/// ```
+/// use apollonius::{Point, EuclideanMetric};
+///
+/// let a = Point::new([0.0, 0.0]);
+/// let b = Point::new([3.0, 4.0]);
+/// assert_eq!(a.distance(&b), 5.0);
+/// ```
 pub trait EuclideanMetric<T>: MetricSquared<T> {
     /// Calculates the Euclidean distance between `self` and `other`.
     fn distance(&self, other: &Self) -> T;
@@ -75,7 +95,16 @@ impl<T, const N: usize> Point<T, N>
 where
     T: Copy,
 {
-    /// Creates a new Point from a fixed-size array of coordinates.
+    /// Creates a new point from a fixed-size array of coordinates.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Point;
+    ///
+    /// let p = Point::new([1.0, 2.0, 3.0]);
+    /// assert_eq!(p.coords, [1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
@@ -102,6 +131,14 @@ impl<T> From<(T, T)> for Point2D<T> {
 
 impl<T> From<(T, T, T)> for Point3D<T> {
     /// Converts a 3-element tuple into a [`Point3D`].
+    ///
+    /// # Example
+    /// ```
+    /// use apollonius::Point3D;
+    ///
+    /// let p = Point3D::from((1.0, 2.0, 3.0));
+    /// assert_eq!(p.coords, [1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     fn from(tuple: (T, T, T)) -> Self {
         Self {
@@ -113,6 +150,16 @@ impl<T> From<(T, T, T)> for Point3D<T> {
 impl<T, const N: usize> From<Vector<T, N>> for Point<T, N> {
     /// Converts a [`Vector`] into a [`Point`], assuming the vector represents
     /// a position relative to the origin.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector};
+    ///
+    /// let v = Vector::new([1.0, 2.0, 3.0]);
+    /// let p = Point::from(v);
+    /// assert_eq!(p.coords, [1.0, 2.0, 3.0]);
+    /// ```
     #[inline]
     fn from(vector: Vector<T, N>) -> Self {
         Self {

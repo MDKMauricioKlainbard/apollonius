@@ -218,14 +218,41 @@ where
 
     /// Computes the intersection(s) between this hypersphere and an infinite line.
     ///
-    /// This is a convenience method that delegates the geometric calculation to
-    /// the line's specific intersection logic.
+    /// Delegates to [`Line::intersect_hypersphere`].
+    ///
+    /// # Returns
+    /// This method returns only the following variants (never `Single`, `Collinear`, or `HalfSpacePenetration`):
+    /// - [`None`](crate::IntersectionResult::None): The line does not intersect the sphere.
+    /// - [`Tangent(p)`](crate::IntersectionResult::Tangent): The line is tangent to the sphere at point `p`.
+    /// - [`Secant(p1, p2)`](crate::IntersectionResult::Secant): The line enters and leaves the sphere at `p1` and `p2`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::{Point, Vector, Line, Hypersphere, IntersectionResult};
+    ///
+    /// let line = Line::new(Point::new([-5.0, 0.0]), Vector::new([1.0, 0.0]));
+    /// let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 2.0);
+    /// if let IntersectionResult::Secant(p1, p2) = sphere.intersect_line(&line) {
+    ///     assert_eq!(p1.coords[0], -2.0);
+    ///     assert_eq!(p2.coords[0], 2.0);
+    /// }
+    /// ```
     #[inline]
     pub fn intersect_line(&self, line: &Line<T, N>) -> IntersectionResult<T, N> {
         line.intersect_hypersphere(self)
     }
 
     /// Computes the intersection(s) between this hypersphere and a finite line segment.
+    ///
+    /// Delegates to [`Segment::intersect_hypersphere`].
+    ///
+    /// # Returns
+    /// This method returns only the following variants (never `Collinear` or `HalfSpacePenetration`):
+    /// - [`None`](crate::IntersectionResult::None): No intersection within segment bounds.
+    /// - [`Tangent(p)`](crate::IntersectionResult::Tangent): The segment is tangent to the sphere at `p`.
+    /// - [`Secant(p1, p2)`](crate::IntersectionResult::Secant): Both intersection points lie on the segment.
+    /// - [`Single(p)`](crate::IntersectionResult::Single): Exactly one intersection point lies on the segment.
     ///
     /// # Examples
     ///
@@ -263,6 +290,7 @@ where
     ///
     /// # Returns
     ///
+    /// This method returns only the following variants (never `Single`, `Secant`, or `Collinear`):
     /// - **[`None`](crate::IntersectionResult::None)**: The sphere lies entirely in the
     ///   positive half-space (on the side of the plane's normal). No contact with the plane.
     /// - **[`Tangent(p)`](crate::IntersectionResult::Tangent)**: The sphere is tangent to the
