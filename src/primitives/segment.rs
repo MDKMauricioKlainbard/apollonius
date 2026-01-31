@@ -6,9 +6,9 @@ use num_traits::Float;
 
 /// A finite line segment in N-dimensional space defined by two endpoints.
 ///
-/// The segment pre-calculates its displacement vector (delta), squared
-/// magnitude, and its Axis-Aligned Bounding Box (AABB) to optimize
-/// frequent spatial queries and broad-phase collision detection.
+/// Derived quantities (displacement vector, length, direction, etc.) are
+/// computed on demand to favor simulations that update endpoints often and
+/// only need spatial queries (e.g. AABB overlap) in a subset of steps.
 ///
 /// # Examples
 ///
@@ -24,52 +24,26 @@ use num_traits::Float;
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "T: serde::Serialize",
+        deserialize = "T: serde::Deserialize<'de>"
+    ))
+)]
 pub struct Segment<T, const N: usize> {
     start: Point<T, N>,
     end: Point<T, N>,
-    delta: Vector<T, N>,
-    mag_sq: T,               // Cached value for optimization
-    cached_aabb: AABB<T, N>, // Cached Bounding Box
 }
 
 impl<T, const N: usize> Segment<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Creates a new Segment from two points and pre-calculates the internal state.
+    /// Creates a new segment from two endpoints.
     #[inline]
     pub fn new(start: Point<T, N>, end: Point<T, N>) -> Self {
-        let delta = end - start;
-        let mag_sq = delta.magnitude_squared();
-        let cached_aabb = Self::compute_aabb(start, end);
-        Self {
-            start,
-            end,
-            delta,
-            mag_sq,
-            cached_aabb,
-        }
-    }
-
-    /// Internal helper to calculate the AABB from the two endpoints.
-    fn compute_aabb(start: Point<T, N>, end: Point<T, N>) -> AABB<T, N> {
-        let mut min_coords = [T::zero(); N];
-        let mut max_coords = [T::zero(); N];
-
-        for i in 0..N {
-            let s = start.coords[i];
-            let e = end.coords[i];
-            if s < e {
-                min_coords[i] = s;
-                max_coords[i] = e;
-            } else {
-                min_coords[i] = e;
-                max_coords[i] = s;
-            }
-        }
-
-        AABB::new(Point::new(min_coords), Point::new(max_coords))
+        Self { start, end }
     }
 
     /// Returns the start point of the segment.
@@ -84,32 +58,26 @@ where
         self.end
     }
 
-    /// Updates the start point and synchronizes the delta, magnitude, and AABB.
+    /// Updates the start point.
     pub fn set_start(&mut self, new_start: Point<T, N>) {
         self.start = new_start;
-        self.delta = self.end - self.start;
-        self.mag_sq = self.delta.magnitude_squared();
-        self.cached_aabb = Self::compute_aabb(self.start, self.end);
     }
 
-    /// Updates the end point and synchronizes the delta, magnitude, and AABB.
+    /// Updates the end point.
     pub fn set_end(&mut self, new_end: Point<T, N>) {
         self.end = new_end;
-        self.delta = self.end - self.start;
-        self.mag_sq = self.delta.magnitude_squared();
-        self.cached_aabb = Self::compute_aabb(self.start, self.end);
     }
 
-    /// Returns the cached squared length of the segment.
+    /// Returns the squared length of the segment.
     #[inline]
     pub fn length_squared(&self) -> T {
-        self.mag_sq
+        self.delta().magnitude_squared()
     }
 
     /// Returns the displacement vector (end - start).
     #[inline]
     pub fn delta(&self) -> Vector<T, N> {
-        self.delta
+        self.end - self.start
     }
 }
 
@@ -117,10 +85,28 @@ impl<T, const N: usize> Bounded<T, N> for Segment<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Returns the cached Axis-Aligned Bounding Box.
-    #[inline]
+    /// Returns the Axis-Aligned Bounding Box enclosing the segment.
+    ///
+    /// Min and max coordinates are computed per axis using [`std::array::from_fn`],
+    /// so the AABB is built in a single pass over the dimensions.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Segment, Bounded};
+    ///
+    /// let seg = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
+    /// let aabb = seg.aabb();
+    /// assert_eq!(aabb.min.coords, [0.0, 0.0]);
+    /// assert_eq!(aabb.max.coords, [10.0, 10.0]);
+    /// ```
     fn aabb(&self) -> AABB<T, N> {
-        self.cached_aabb
+        let (start, end) = (self.start().coords, self.end.coords);
+
+        let min_coords = std::array::from_fn(|i| start[i].min(end[i]));
+        let max_coords = std::array::from_fn(|i| start[i].max(end[i]));
+
+        AABB::new(Point::new(min_coords), Point::new(max_coords))
     }
 }
 
@@ -138,7 +124,7 @@ where
     ///
     /// Returns `None` if the segment has zero length (start == end).
     pub fn direction(&self) -> Option<Vector<T, N>> {
-        self.delta.normalize()
+        self.delta().normalize()
     }
 
     /// Returns the point at the exact center of the segment.
@@ -155,15 +141,17 @@ where
     /// Note: This method allows extrapolation if `t` is outside the [0, 1] range.
     #[inline]
     pub fn at(&self, t: T) -> Point<T, N> {
-        self.start + self.delta * t
+        self.start + self.delta() * t
     }
 
     /// Internal helper to find the parameter `t` for a point `p`.
     fn get_t(&self, p: Point<T, N>) -> T {
-        if self.mag_sq <= T::zero() {
+        let mag_sq = self.length_squared();
+        if mag_sq <= T::zero() {
             return T::zero();
         }
-        (p - self.start).dot(&self.delta) / self.mag_sq
+        let delta = self.delta();
+        (p - self.start).dot(&delta) / mag_sq
     }
 
     /// Calculates the intersection points between this segment and a hypersphere.
@@ -195,7 +183,8 @@ where
             return IntersectionResult::None;
         }
 
-        let t_line = (sphere.center() - self.start).dot(&self.delta) / mag_sq;
+        let delta = self.delta();
+        let t_line = (sphere.center() - self.start).dot(&delta) / mag_sq;
         let pc = self.at(t_line);
 
         let dist_sq = (pc - sphere.center()).magnitude_squared();
@@ -213,7 +202,7 @@ where
             }
             FloatSign::Positive => {
                 let h = diff.sqrt();
-                let dir = self.direction().unwrap_or(self.delta);
+                let dir = self.direction().unwrap_or_else(|| self.delta());
 
                 let p1 = pc - dir * h;
                 let p2 = pc + dir * h;
@@ -306,11 +295,13 @@ where
     /// ```
     pub fn intersect_segment(&self, other: &Segment<T, N>) -> IntersectionResult<T, N> {
         let v_diff = self.start - other.start; // P1 - P2
-        let a = self.mag_sq; // V1 · V1
-        let b = self.delta.dot(&other.delta); // V1 · V2
-        let c = other.mag_sq; // V2 · V2
-        let e = other.delta.dot(&v_diff); // V2 · (P1 - P2)
-        let f = self.delta.dot(&v_diff); // V1 · (P1 - P2)
+        let d_self = self.delta();
+        let d_other = other.delta();
+        let a = d_self.magnitude_squared(); // V1 · V1
+        let b = d_self.dot(&d_other); // V1 · V2
+        let c = d_other.magnitude_squared(); // V2 · V2
+        let e = d_other.dot(&v_diff); // V2 · (P1 - P2)
+        let f = d_self.dot(&v_diff); // V1 · (P1 - P2)
 
         let det = b * b - a * c;
 
@@ -325,7 +316,7 @@ where
                 } else {
                     T::zero()
                 };
-                let closest_on_line = self.start + self.delta * t_proj;
+                let closest_on_line = self.start + d_self * t_proj;
                 let dist_to_line_sq = (other.start - closest_on_line).magnitude_squared();
 
                 if let FloatSign::Zero = classify_to_zero(dist_to_line_sq, None) {
@@ -416,7 +407,8 @@ where
         let mag_sq = self.length_squared();
 
         if mag_sq > T::zero() {
-            let t = ((*p - self.start).dot(&self.delta) / mag_sq)
+            let delta = self.delta();
+            let t = ((*p - self.start).dot(&delta) / mag_sq)
                 .max(T::zero())
                 .min(T::one());
 
@@ -743,10 +735,7 @@ mod tests {
     fn test_segment_serialization_roundtrip() {
         use serde_json;
 
-        let seg = Segment::new(
-            Point::new([0.0, 0.0]),
-            Point::new([10.0, 10.0]),
-        );
+        let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
         let json = serde_json::to_string(&seg).unwrap();
         let restored: Segment<f64, 2> = serde_json::from_str(&json).unwrap();
         assert_eq!(seg.start, restored.start);

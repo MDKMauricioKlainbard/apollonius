@@ -9,9 +9,6 @@ use num_traits::Float;
 /// In 2D space, this represents a circle. In 3D, a sphere. In higher dimensions,
 /// it represents the set of all points at a fixed distance (radius) from a central point.
 ///
-/// This structure maintains a cached `AABB` to optimize spatial queries and
-/// broad-phase collision detection.
-///
 /// # Examples
 ///
 /// ```
@@ -25,11 +22,16 @@ use num_traits::Float;
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "T: serde::Serialize",
+        deserialize = "T: serde::Deserialize<'de>"
+    ))
+)]
 pub struct Hypersphere<T, const N: usize> {
     center: Point<T, N>,
     radius: T,
-    cached_aabb: AABB<T, N>,
 }
 
 /// A 2-dimensional hypersphere (Circle).
@@ -41,7 +43,7 @@ impl<T, const N: usize> Hypersphere<T, N>
 where
     T: Float + std::iter::Sum,
 {
-    /// Creates a new hypersphere and pre-calculates its bounding box.
+    /// Creates a new hypersphere.
     ///
     /// # Arguments
     /// * `center` - The central point of the hypersphere.
@@ -60,28 +62,7 @@ where
     /// ```
     #[inline]
     pub fn new(center: Point<T, N>, radius: T) -> Self {
-        let cached_aabb = Self::compute_aabb(&center, radius);
-        Self {
-            center,
-            radius,
-            cached_aabb,
-        }
-    }
-
-    /// Static helper to compute an AABB from a center and radius without instantiation.
-    fn compute_aabb(center: &Point<T, N>, radius: T) -> AABB<T, N> {
-        let mut min_coords = [T::zero(); N];
-        let mut max_coords = [T::zero(); N];
-
-        for i in 0..N {
-            min_coords[i] = center.coords[i] - radius;
-            max_coords[i] = center.coords[i] + radius;
-        }
-
-        AABB {
-            min: Point::new(min_coords),
-            max: Point::new(max_coords),
-        }
+        Self { center, radius }
     }
 
     /// Returns the hypersphere's center point.
@@ -96,41 +77,36 @@ where
         self.radius
     }
 
-    /// Updates the center and performs an incremental O(N) translation of the cached AABB.
-    ///
-    /// This is more efficient than recomputing the AABB from scratch as it only
-    /// applies the displacement vector to the bounding box boundaries.
+    /// Updates the center.
     pub fn set_center(&mut self, new_center: Point<T, N>) {
-        let offset = new_center - self.center;
         self.center = new_center;
-
-        self.cached_aabb.min = self.cached_aabb.min + offset;
-        self.cached_aabb.max = self.cached_aabb.max + offset;
     }
 
-    /// Updates the radius and expands or contracts the cached AABB radially in O(N).
-    ///
-    /// The update is performed incrementally by adjusting the AABB bounds
-    /// based on the difference between the new and old radius.
+    /// Updates the radius.
     pub fn set_radius(&mut self, new_radius: T) {
-        let delta_r = new_radius - self.radius;
         self.radius = new_radius;
-
-        for i in 0..N {
-            self.cached_aabb.min.coords[i] = self.cached_aabb.min.coords[i] - delta_r;
-            self.cached_aabb.max.coords[i] = self.cached_aabb.max.coords[i] + delta_r;
-        }
     }
 }
 
 impl<T, const N: usize> Bounded<T, N> for Hypersphere<T, N>
 where
-    T: Copy,
+    T: Float,
 {
-    /// Returns the cached Axis-Aligned Bounding Box.
-    #[inline]
+    /// Returns the Axis-Aligned Bounding Box enclosing the hypersphere.
     fn aabb(&self) -> AABB<T, N> {
-        self.cached_aabb
+        let mut min_coords = [T::zero(); N];
+        let mut max_coords = [T::zero(); N];
+        let (center, radius) = (self.center, self.radius);
+
+        for i in 0..N {
+            min_coords[i] = center.coords[i] - radius;
+            max_coords[i] = center.coords[i] + radius;
+        }
+
+        AABB {
+            min: Point::new(min_coords),
+            max: Point::new(max_coords),
+        }
     }
 }
 

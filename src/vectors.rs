@@ -387,6 +387,48 @@ where
     }
 }
 
+impl<T> Vector<T, 2>
+where
+    T: Float,
+{
+    /// Cross product of two 2D vectors, interpreted as vectors in the xy-plane (z = 0).
+    ///
+    /// Returns a **3D vector** whose x- and y-components are zero and whose z-component
+    /// is the signed scalar cross product `x1*y2 - y1*x2` (signed area of the parallelogram
+    /// spanned by the two vectors). Useful for 2D area computations and orientation tests.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use apollonius::Vector2D;
+    ///
+    /// let u = Vector2D::from((1.0, 0.0));
+    /// let v = Vector2D::from((0.0, 1.0));
+    /// let w = u.cross(&v);
+    /// assert_eq!(w.coords, [0.0, 0.0, 1.0]);
+    /// ```
+    ///
+    /// Signed area of the parallelogram (z-component):
+    ///
+    /// ```
+    /// use apollonius::Vector2D;
+    ///
+    /// let u = Vector2D::from((3.0, 0.0));
+    /// let v = Vector2D::from((0.0, 4.0));
+    /// let w = u.cross(&v);
+    /// assert_eq!(w.coords[2], 12.0); // 3*4 - 0*0
+    /// ```
+    #[inline]
+    pub fn cross(&self, other: &Self) -> Vector<T, 3> {
+        let [x1, y1] = self.coords;
+        let [x2, y2] = other.coords;
+
+        Vector {
+            coords: [T::zero(), T::zero(), x1 * y2 - y1 * x2],
+        }
+    }
+}
+
 impl<T> Vector<T, 3>
 where
     T: Copy + Mul<Output = T> + Sub<Output = T>,

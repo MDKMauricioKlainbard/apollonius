@@ -10,7 +10,7 @@
 
 * **N-Dimensional Support:** Type-safe coordinates and vectors for 2D, 3D, and higher-dimensional spaces using Rust's `const generics`.
 * **Efficient Primitives:**
-    * **Hyperspheres:** (Circles, Spheres, N-Spheres) with incremental AABB caching, plane intersection, and submerged volume ratio.
+    * **Hyperspheres:** (Circles, Spheres, N-Spheres) with plane intersection and submerged volume ratio.
     * **Lines & Segments:** Infinite lines and finite segments with parametric evaluation, projection, and full intersection APIs.
     * **Hyperplanes:** Half-space queries, signed distance, and intersection with lines, segments, and hyperspheres.
 * **Broad-Phase Foundations:** Native support for **AABB** (Axis-Aligned Bounding Boxes) with optimized overlap theorems.

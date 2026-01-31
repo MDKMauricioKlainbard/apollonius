@@ -3,6 +3,7 @@ pub mod hyperplane;
 pub mod hypersphere;
 pub mod line;
 pub mod segment;
+pub mod triangle;
 
 use crate::{AABB, EuclideanVector, FloatSign, Point, VectorMetricSquared, classify_to_zero};
 use num_traits::Float;
@@ -88,7 +89,7 @@ pub trait SpatialRelation<T, const N: usize> {
 
 /// Represents an entity that can be enclosed within an Axis-Aligned Bounding Box.
 ///
-/// Implemented by [`Hypersphere`], [`Segment`], and other primitives that cache or
+/// Implemented by [`Hypersphere`], [`Segment`], and other primitives that
 /// compute an AABB for broad-phase collision detection.
 ///
 /// # Examples
