@@ -23,6 +23,8 @@ use num_traits::Float;
 /// assert_eq!(segment.midpoint().coords[0], 5.0);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub struct Segment<T, const N: usize> {
     start: Point<T, N>,
     end: Point<T, N>,

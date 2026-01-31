@@ -24,6 +24,8 @@ use num_traits::Float;
 /// assert_eq!(circle.radius(), 1.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub struct Hypersphere<T, const N: usize> {
     center: Point<T, N>,
     radius: T,

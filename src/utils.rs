@@ -6,6 +6,7 @@ use num_traits::Float;
 /// floating-point arithmetic in geometric tests (e.g., checking if a point
 /// lies exactly on a plane).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FloatSign {
     /// The value is strictly greater than the positive epsilon.
     Positive,

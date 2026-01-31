@@ -3,6 +3,9 @@ use std::ops::{Add, Mul, Sub};
 
 use crate::Vector;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 /// Represents a location in an N-dimensional affine space.
 ///
 /// Unlike a [`Vector`], a [`Point`] represents a fixed position in space and
@@ -21,6 +24,30 @@ use crate::Vector;
 pub struct Point<T, const N: usize> {
     /// The coordinate values along each of the N axes.
     pub coords: [T; N],
+}
+
+#[cfg(feature = "serde")]
+impl<T: Serialize, const N: usize> Serialize for Point<T, N> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.coords.as_slice().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: Deserialize<'de>, const N: usize> Deserialize<'de> for Point<T, N> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let coords_vec = Vec::<T>::deserialize(deserializer)?;
+        let coords: [T; N] = coords_vec.try_into().map_err(|_| {
+            serde::de::Error::custom(format!("Point dimension mismatch: expected {}", N))
+        })?;
+        Ok(Self { coords })
+    }
 }
 
 /// A 2D point specialization.

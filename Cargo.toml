@@ -9,8 +9,13 @@ repository = "https://github.com/MDKMauricioKlainbard/apollonius"
 keywords = ["geometry", "vector", "point", "euclidean", "math"]
 categories = ["science", "algorithms", "data-structures", "mathematics"]
 
+[features]
+default = []
+serde = ["dep:serde"]
+
 [dependencies]
 num-traits = "0.2.19"
+serde = { version = "1.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
 approx = "0.5"

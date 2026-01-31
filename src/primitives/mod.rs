@@ -99,6 +99,8 @@ pub trait Bounded<T, const N: usize> {
 /// This enum accounts for the different ways entities can interact in N-dimensional space,
 /// distinguishing between points of contact, boundary crossings, and overlapping structures.
 #[derive(Debug, Clone, PartialEq, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub enum IntersectionResult<T, const N: usize> {
     /// No intersection occurs between the entities.
     None,

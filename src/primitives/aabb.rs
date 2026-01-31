@@ -22,6 +22,8 @@ use num_traits::Float;
 /// assert_eq!(aabb.max.coords[1], 2.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub struct AABB<T, const N: usize> {
     /// The component-wise minimum point (e.g., bottom-left-front).
     pub min: Point<T, N>,

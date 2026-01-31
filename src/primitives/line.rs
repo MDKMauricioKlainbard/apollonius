@@ -20,6 +20,8 @@ use num_traits::Float;
 ///
 /// assert_eq!(line.at(10.0).coords[0], 10.0);
 /// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub struct Line<T, const N: usize> {
     origin: Point<T, N>,
     direction: Vector<T, N>,
