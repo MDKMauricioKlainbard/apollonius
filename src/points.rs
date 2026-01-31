@@ -364,3 +364,33 @@ mod points_tests {
         assert_eq!(vi.coords, [3, 4]);
     }
 }
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_point_serialization_roundtrip() {
+        let p = Point::new([1.0, 2.0, 3.0]);
+        let json = serde_json::to_string(&p).unwrap();
+        let q: Point<f64, 3> = serde_json::from_str(&json).unwrap();
+        assert_eq!(p, q);
+    }
+
+    #[test]
+    fn test_point2d_serialization_roundtrip() {
+        let p = Point2D::from((1.0, 2.0));
+        let json = serde_json::to_string(&p).unwrap();
+        let q: Point2D<f64> = serde_json::from_str(&json).unwrap();
+        assert_eq!(p, q);
+    }
+
+    #[test]
+    fn test_point3d_serialization_roundtrip() {
+        let p = Point3D::from((1.0, 2.0, 3.0));
+        let json = serde_json::to_string(&p).unwrap();
+        let q: Point3D<f64> = serde_json::from_str(&json).unwrap();
+        assert_eq!(p, q);
+    }
+}

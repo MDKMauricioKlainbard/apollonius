@@ -737,4 +737,19 @@ mod tests {
 
         assert_eq!(s1.intersect_segment(&s2), IntersectionResult::None);
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_segment_serialization_roundtrip() {
+        use serde_json;
+
+        let seg = Segment::new(
+            Point::new([0.0, 0.0]),
+            Point::new([10.0, 10.0]),
+        );
+        let json = serde_json::to_string(&seg).unwrap();
+        let restored: Segment<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(seg.start, restored.start);
+        assert_eq!(seg.end, restored.end);
+    }
 }

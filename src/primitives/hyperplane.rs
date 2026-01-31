@@ -310,4 +310,19 @@ mod tests {
             panic!("Expected single intersection point");
         }
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_hyperplane_serialization_roundtrip() {
+        use serde_json;
+
+        let plane = Hyperplane::new(
+            Point::new([0.0, 0.0, 0.0]),
+            Vector::new([0.0, 0.0, 1.0]),
+        );
+        let json = serde_json::to_string(&plane).unwrap();
+        let restored: Hyperplane<f64, 3> = serde_json::from_str(&json).unwrap();
+        assert_eq!(plane.origin(), restored.origin());
+        assert_eq!(plane.normal().coords, restored.normal().coords);
+    }
 }

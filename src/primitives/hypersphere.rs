@@ -710,4 +710,16 @@ mod tests {
             _ => panic!("Expected Tangent point for tangency"),
         }
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_hypersphere_serialization_roundtrip() {
+        use serde_json;
+
+        let sphere = Hypersphere::new(Point::new([1.0, 2.0, 3.0]), 5.0);
+        let json = serde_json::to_string(&sphere).unwrap();
+        let restored: Hypersphere<f64, 3> = serde_json::from_str(&json).unwrap();
+        assert_eq!(sphere.center(), restored.center());
+        assert_eq!(sphere.radius(), restored.radius());
+    }
 }

@@ -151,3 +151,46 @@ pub enum IntersectionResult<T, const N: usize> {
     /// The associated value represents the penetration depth along the normal.
     HalfSpacePenetration(T),
 }
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use crate::Point;
+    use serde_json;
+
+    #[test]
+    fn test_intersection_result_serialization_roundtrip() {
+        let none: IntersectionResult<f64, 2> = IntersectionResult::None;
+        let json = serde_json::to_string(&none).unwrap();
+        let restored: IntersectionResult<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(none, restored);
+
+        let tangent = IntersectionResult::Tangent(Point::new([1.0, 2.0]));
+        let json = serde_json::to_string(&tangent).unwrap();
+        let restored: IntersectionResult<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(tangent, restored);
+
+        let secant = IntersectionResult::Secant(
+            Point::new([0.0, 0.0]),
+            Point::new([1.0, 1.0]),
+        );
+        let json = serde_json::to_string(&secant).unwrap();
+        let restored: IntersectionResult<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(secant, restored);
+
+        let collinear: IntersectionResult<f64, 2> = IntersectionResult::Collinear;
+        let json = serde_json::to_string(&collinear).unwrap();
+        let restored: IntersectionResult<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(collinear, restored);
+
+        let single = IntersectionResult::Single(Point::new([3.0, 4.0]));
+        let json = serde_json::to_string(&single).unwrap();
+        let restored: IntersectionResult<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(single, restored);
+
+        let penetration = IntersectionResult::HalfSpacePenetration(2.5);
+        let json = serde_json::to_string(&penetration).unwrap();
+        let restored: IntersectionResult<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(penetration, restored);
+    }
+}

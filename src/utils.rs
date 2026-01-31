@@ -73,3 +73,18 @@ pub fn classify_to_zero<T: Float>(val: T, epsilon_override: Option<T>) -> FloatS
         FloatSign::Negative
     }
 }
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_float_sign_serialization_roundtrip() {
+        for variant in [FloatSign::Positive, FloatSign::Zero, FloatSign::Negative] {
+            let json = serde_json::to_string(&variant).unwrap();
+            let restored: FloatSign = serde_json::from_str(&json).unwrap();
+            assert_eq!(variant, restored);
+        }
+    }
+}

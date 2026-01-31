@@ -723,4 +723,21 @@ mod test {
             panic!("Expected single intersection at (2, 2)");
         }
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_line_serialization_roundtrip() {
+        use serde_json;
+
+        let line = Line::new(
+            Point::new([0.0, 0.0]),
+            Vector::new([1.0, 0.0]),
+        );
+        let json = serde_json::to_string(&line).unwrap();
+        let restored: Line<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_relative_eq!(line.at(0.0).coords[0], restored.at(0.0).coords[0]);
+        assert_relative_eq!(line.at(0.0).coords[1], restored.at(0.0).coords[1]);
+        assert_relative_eq!(line.at(1.0).coords[0], restored.at(1.0).coords[0]);
+        assert_relative_eq!(line.at(1.0).coords[1], restored.at(1.0).coords[1]);
+    }
 }

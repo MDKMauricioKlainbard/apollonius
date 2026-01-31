@@ -160,4 +160,16 @@ mod tests {
             "Separation on Z axis should prevent overlap"
         );
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_aabb_serialization_roundtrip() {
+        use serde_json;
+
+        let aabb = AABB::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
+        let json = serde_json::to_string(&aabb).unwrap();
+        let restored: AABB<f64, 2> = serde_json::from_str(&json).unwrap();
+        assert_eq!(aabb.min, restored.min);
+        assert_eq!(aabb.max, restored.max);
+    }
 }

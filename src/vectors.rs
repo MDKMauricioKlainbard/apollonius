@@ -536,3 +536,33 @@ mod vectors_tests {
         let _sum_i32 = v_i32 + Vector::new([4, 5, 6]);
     }
 }
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_vector_serialization_roundtrip() {
+        let v = Vector::new([1.0, 2.0, 3.0]);
+        let json = serde_json::to_string(&v).unwrap();
+        let w: Vector<f64, 3> = serde_json::from_str(&json).unwrap();
+        assert_eq!(v, w);
+    }
+
+    #[test]
+    fn test_vector2d_serialization_roundtrip() {
+        let v = Vector2D::from((1.0, 2.0));
+        let json = serde_json::to_string(&v).unwrap();
+        let w: Vector2D<f64> = serde_json::from_str(&json).unwrap();
+        assert_eq!(v, w);
+    }
+
+    #[test]
+    fn test_vector3d_serialization_roundtrip() {
+        let v = Vector3D::from((1.0, 2.0, 3.0));
+        let json = serde_json::to_string(&v).unwrap();
+        let w: Vector3D<f64> = serde_json::from_str(&json).unwrap();
+        assert_eq!(v, w);
+    }
+}
