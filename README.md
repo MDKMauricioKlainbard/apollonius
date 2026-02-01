@@ -1,6 +1,6 @@
 # Apollonius 🌌
 
-![Version](https://img.shields.io/badge/version-0.0.5--alpha-orange)
+![Version](https://img.shields.io/badge/version-0.0.6--alpha-orange)
 ![Rust](https://img.shields.io/badge/language-Rust-red)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -13,6 +13,7 @@
     * **Hyperspheres:** (Circles, Spheres, N-Spheres) with plane intersection and submerged volume ratio.
     * **Lines & Segments:** Infinite lines and finite segments with parametric evaluation, projection, and full intersection APIs.
     * **Hyperplanes:** Half-space queries, signed distance, and intersection with lines, segments, and hyperspheres.
+    * **Triangles:** N-dimensional triangles with centroid, area (Lagrange identity), and AABB.
 * **Broad-Phase Foundations:** Native support for **AABB** (Axis-Aligned Bounding Boxes) with optimized overlap theorems.
 * **Unified Intersection Engine:** A single `IntersectionResult` type covering:
     * **None**, **Tangent**(point), **Secant**(p1, p2), **Collinear**, **Single**(point) for point-like contacts.
@@ -32,7 +33,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-apollonius = "0.0.5-alpha"
+apollonius = "0.0.6-alpha"
 ```
 
 ## 📖 Quick Example: Line–Hypersphere Intersection
@@ -69,11 +70,12 @@ match sphere.intersect_hyperplane(&plane) {
 ## 🛰 Roadmap
 
 - [x] N-dimensional Point & Vector algebra.
-- [x] Core primitives (Hypersphere, Line, Segment, Hyperplane, AABB).
+- [x] Core primitives (Hypersphere, Line, Segment, Hyperplane, AABB, Triangle).
 - [x] AABB broad-phase overlap.
 - [x] Point-result intersections: Line/Segment with Line, Segment, Hypersphere, Hyperplane; Hyperplane with Line, Segment, Hypersphere; Hypersphere with Line, Segment, Hyperplane.
 - [x] Hypersphere–Hyperplane: tangent contact, half-space penetration, `submerged_ratio`.
 - [x] Documentation and doc tests.
+- [ ] **v0.0.7:** Transformation matrices (affine: translation, scale, rotation; apply to Point/Vector).
 - [ ] GJK (Gilbert–Johnson–Keerthi) for narrow-phase.
 - [ ] Oriented Bounding Boxes (OBB).
 - [ ] Spatial partitioning (BVH / quadtree).

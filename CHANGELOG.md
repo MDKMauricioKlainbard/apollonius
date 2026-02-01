@@ -7,17 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for 0.0.6-alpha
-
-- **Serialization:** Optional Serde support (`serde` feature) for `Point`, `Vector`, `FloatSign`, `IntersectionResult`, `AABB`, `Line`, `Segment`, `Hypersphere`, `Hyperplane`. Round-trip tests with `serde_json` in each module.
-- **Documentation:** Expanded docs, doc tests, and examples across points, vectors, utils, and primitives. Methods returning `IntersectionResult` now document exactly which variants they can return.
-- **Testing:** New serialization round-trip tests (run with `cargo test --features serde`).
-
-*Note: 0.0.6-alpha is not yet published to crates.io.*
+_No changes yet._
 
 ---
 
-## [0.0.5-alpha] - (current)
+## [0.0.6-alpha] - 2026-01-29
+
+### Added
+
+- **Triangle** primitive: construction (`new`, `From`), accessors `a()`, `b()`, `c()`, `vertices()`, `centroid()`, `area()` (Lagrange identity, N-dimensional), `Bounded::aabb()`. Doc tests and examples.
+- **`SpatialRelation::distance_to_point_squared`**: default implementation; `distance_to_point` now delegates to it (avoids `sqrt` when only comparing distances).
+- **`Vector2D::cross`**: 2D cross product returning a 3D vector (z-component = signed parallelogram area); doc and examples.
+- **Crate-level docs** in `lib.rs`: design goals, core types table, quick example, features summary.
+- **Serialization round-trip tests** in each module (run with `cargo test --features serde`).
+
+### Changed
+
+- **Segment:** Removed cached `delta` and `mag_sq`; `delta()` and `length_squared()` computed on demand. AABB built with `std::array::from_fn`.
+- **Hypersphere:** Removed cached AABB; `aabb()` computed on demand. Docs updated (no references to cached AABB).
+- **Documentation:** Expanded docs, doc tests, and examples across points, vectors, utils, and primitives. Methods returning `IntersectionResult` document exactly which variants they return. Triangle, Segment AABB, Vector2D cross, and `distance_to_point_squared` documented with examples.
+- **Cargo.toml:** Improved description, `readme`, `documentation`, `homepage`, expanded keywords.
+
+---
+
+## [0.0.5-alpha]
 
 ### Added
 
@@ -78,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.5-alpha...HEAD
+[Unreleased]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.6-alpha...HEAD
+[0.0.6-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.5-alpha...v0.0.6-alpha
 [0.0.5-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.4-alpha...v0.0.5-alpha
 [0.0.4-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.3-alpha...v0.0.4-alpha
 [0.0.3-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.2-alpha...v0.0.3-alpha
