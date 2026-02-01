@@ -8,21 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/MDKMauricioKlainbard/apollonius"
 documentation = "https://docs.rs/apollonius"
 homepage = "https://github.com/MDKMauricioKlainbard/apollonius"
-keywords = [
-    "geometry",
-    "euclidean",
-    "vector",
-    "point",
-    "line",
-    "segment",
-    "sphere",
-    "circle",
-    "aabb",
-    "triangle",
-    "intersection",
-    "collision",
-    "const-generics",
-]
+keywords = ["math", "geometry", "2d", "3d", "collision"]
 categories = [
     "science",
     "algorithms",
