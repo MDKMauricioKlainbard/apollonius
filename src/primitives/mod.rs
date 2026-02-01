@@ -5,7 +5,7 @@ pub mod line;
 pub mod segment;
 pub mod triangle;
 
-use crate::{AABB, EuclideanVector, FloatSign, Point, VectorMetricSquared, classify_to_zero};
+use crate::{AABB, FloatSign, Point, VectorMetricSquared, classify_to_zero};
 use num_traits::Float;
 
 /// Defines spatial queries for geometric entities in N-dimensional space.
@@ -33,17 +33,47 @@ pub trait SpatialRelation<T, const N: usize> {
     /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N>;
 
-    /// Calculates the minimum Euclidean distance between the entity and a point.
+    /// Returns the squared Euclidean distance from the point to the entity.
     ///
     /// This method is provided by default and relies on [`Self::closest_point`].
+    /// Prefer this over [`Self::distance_to_point`] when comparing distances (e.g.
+    /// threshold checks), since it avoids a square root and is cheaper.
     ///
     /// # Constraints
     /// * `T` must implement [`Float`] and [`std::iter::Sum`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Line, Vector, SpatialRelation};
+    ///
+    /// let line = Line::new(Point::new([0.0, 0.0]), Vector::new([1.0, 0.0]));
+    /// let p = Point::new([5.0, 3.0]);
+    /// let d_sq = line.distance_to_point_squared(&p);
+    /// assert!(((d_sq - 9.0) as f64).abs() < 1e-10); // 3² = 9
+    /// ```
+    #[inline]
+    fn distance_to_point_squared(&self, p: &Point<T, N>) -> T
+    where
+        T: Float + std::iter::Sum,
+    {
+        (self.closest_point(p) - *p).magnitude_squared()
+    }
+
+    /// Calculates the minimum Euclidean distance between the entity and a point.
+    ///
+    /// This method is provided by default as the square root of
+    /// [`Self::distance_to_point_squared`]. Use [`Self::distance_to_point_squared`]
+    /// when only comparing distances to avoid the cost of the square root.
+    ///
+    /// # Constraints
+    /// * `T` must implement [`Float`] and [`std::iter::Sum`].
+    #[inline]
     fn distance_to_point(&self, p: &Point<T, N>) -> T
     where
         T: Float + std::iter::Sum,
     {
-        (self.closest_point(p) - *p).magnitude()
+        self.distance_to_point_squared(p).sqrt()
     }
 
     /// Checks if a point lies on the boundary or structure of the entity.

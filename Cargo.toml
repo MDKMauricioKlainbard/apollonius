@@ -2,12 +2,33 @@
 name = "apollonius"
 version = "0.0.5-alpha"
 edition = "2024"
-description = "A foundational geometry library for Rust, built with const generics."
+description = "N-dimensional Euclidean geometry for Rust: points, vectors, lines, segments, hyperspheres, hyperplanes, AABBs, triangles, and a unified intersection API—all with const generics."
+readme = "README.md"
 license = "MIT OR Apache-2.0"
-
 repository = "https://github.com/MDKMauricioKlainbard/apollonius"
-keywords = ["geometry", "vector", "point", "euclidean", "math"]
-categories = ["science", "algorithms", "data-structures", "mathematics"]
+documentation = "https://docs.rs/apollonius"
+homepage = "https://github.com/MDKMauricioKlainbard/apollonius"
+keywords = [
+    "geometry",
+    "euclidean",
+    "vector",
+    "point",
+    "line",
+    "segment",
+    "sphere",
+    "circle",
+    "aabb",
+    "triangle",
+    "intersection",
+    "collision",
+    "const-generics",
+]
+categories = [
+    "science",
+    "algorithms",
+    "data-structures",
+    "mathematics",
+]
 
 [features]
 default = []

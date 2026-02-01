@@ -178,17 +178,18 @@ where
     /// }
     /// ```
     pub fn intersect_hypersphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
+        let (center, radius) = (sphere.center(), sphere.radius());
         let mag_sq = self.length_squared();
         if mag_sq <= T::zero() {
             return IntersectionResult::None;
         }
 
         let delta = self.delta();
-        let t_line = (sphere.center() - self.start).dot(&delta) / mag_sq;
+        let t_line = (center - self.start).dot(&delta) / mag_sq;
         let pc = self.at(t_line);
 
-        let dist_sq = (pc - sphere.center()).magnitude_squared();
-        let r_sq = sphere.radius() * sphere.radius();
+        let dist_sq = (pc - center).magnitude_squared();
+        let r_sq = radius * radius;
         let diff = r_sq - dist_sq;
 
         match classify_to_zero(diff, None) {

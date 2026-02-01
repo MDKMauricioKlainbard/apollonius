@@ -20,6 +20,7 @@ use num_traits::Float;
 ///
 /// assert_eq!(plane.normal().coords[1], 1.0);
 /// ```
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub struct Hyperplane<T, const N: usize> {

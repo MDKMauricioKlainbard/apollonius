@@ -53,6 +53,7 @@ where
     ///
     /// let aabb = AABB::new(Point::new([-1.0, -1.0]), Point::new([1.0, 1.0]));
     /// ```
+    #[inline]
     pub fn new(min: Point<T, N>, max: Point<T, N>) -> Self {
         Self { min, max }
     }

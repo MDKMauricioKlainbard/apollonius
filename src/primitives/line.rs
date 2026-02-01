@@ -20,8 +20,15 @@ use num_traits::Float;
 ///
 /// assert_eq!(line.at(10.0).coords[0], 10.0);
 /// ```
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "T: serde::Serialize",
+        deserialize = "T: serde::Deserialize<'de>"
+    ))
+)]
 pub struct Line<T, const N: usize> {
     origin: Point<T, N>,
     direction: Vector<T, N>,
@@ -54,6 +61,7 @@ where
     /// Evaluates the line at a given parameter t.
     ///
     /// Returns the point P = origin + direction * t.
+    #[inline]
     pub fn at(&self, t: T) -> Point<T, N> {
         self.origin + self.direction * t
     }
@@ -81,9 +89,10 @@ where
     /// }
     /// ```
     pub fn intersect_hypersphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
-        let pc = self.closest_point(&sphere.center());
-        let dist_sq = (pc - sphere.center()).magnitude_squared();
-        let r_sq = sphere.radius() * sphere.radius();
+        let (center, radius) = (sphere.center(), sphere.radius());
+        let pc = self.closest_point(&center);
+        let dist_sq = (pc - center).magnitude_squared();
+        let r_sq = radius * radius;
         let diff = r_sq - dist_sq;
 
         match classify_to_zero(diff, None) {
@@ -343,6 +352,7 @@ where
     /// assert_eq!(closest.coords[0], 5.0);
     /// assert_eq!(closest.coords[1], 0.0);
     /// ```
+    #[inline]
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let t = (*p - self.origin).dot(&self.direction);
         self.origin + self.direction * t
@@ -729,10 +739,7 @@ mod test {
     fn test_line_serialization_roundtrip() {
         use serde_json;
 
-        let line = Line::new(
-            Point::new([0.0, 0.0]),
-            Vector::new([1.0, 0.0]),
-        );
+        let line = Line::new(Point::new([0.0, 0.0]), Vector::new([1.0, 0.0]));
         let json = serde_json::to_string(&line).unwrap();
         let restored: Line<f64, 2> = serde_json::from_str(&json).unwrap();
         assert_relative_eq!(line.at(0.0).coords[0], restored.at(0.0).coords[0]);

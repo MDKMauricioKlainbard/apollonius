@@ -23,6 +23,7 @@ use num_traits::Float;
 /// assert_eq!(aabb.min.coords[0], 0.0);
 /// assert_eq!(aabb.max.coords[0], 1.0);
 /// ```
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Triangle<T, const N: usize> {
     vertices: [Point<T, N>; 3],
 }
