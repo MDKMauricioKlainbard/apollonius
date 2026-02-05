@@ -7,6 +7,8 @@ use std::fmt;
 
 use num_traits::Float;
 
+use crate::{classify_to_zero, FloatSign};
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -51,6 +53,18 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// assert!((s - 0.0).abs() < 1e-10);
 /// assert!((c - 1.0).abs() < 1e-10);
 /// ```
+/// Error returned when [`Angle::tan`] is undefined (cosine is zero or near zero).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TanUndefined;
+
+impl fmt::Display for TanUndefined {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "tan is undefined: cosine is zero or below epsilon")
+    }
+}
+
+impl std::error::Error for TanUndefined {}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Angle<T: Float> {
     radians: T,
@@ -159,6 +173,69 @@ impl<T: Float> Angle<T> {
         self.radians * (deg_conv / pi)
     }
 
+    /// Returns the sine of the angle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Angle;
+    ///
+    /// let a = Angle::<f64>::from_degrees(90.0);
+    /// assert!((a.sin() - 1.0).abs() < 1e-10);
+    /// ```
+    #[inline]
+    pub fn sin(self) -> T {
+        self.radians.sin()
+    }
+
+    /// Returns the cosine of the angle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Angle;
+    ///
+    /// let a = Angle::<f64>::from_degrees(0.0);
+    /// assert!((a.cos() - 1.0).abs() < 1e-10);
+    /// ```
+    #[inline]
+    pub fn cos(self) -> T {
+        self.radians.cos()
+    }
+
+    /// Returns the tangent of the angle, or an error if the cosine is zero or below the
+    /// classification epsilon (avoids division by zero and overflow).
+    ///
+    /// Uses [`classify_to_zero`] on the cosine; if classified as zero, returns [`TanUndefined`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Angle;
+    ///
+    /// let a = Angle::<f64>::from_degrees(45.0);
+    /// let t = a.tan().unwrap();
+    /// assert!((t - 1.0).abs() < 1e-10);
+    /// ```
+    ///
+    /// # Error
+    ///
+    /// Returns `Err(TanUndefined)` when the angle is ±90° (or equivalent), where cos ≈ 0.
+    ///
+    /// ```
+    /// use apollonius::Angle;
+    ///
+    /// let a = Angle::<f64>::from_degrees(90.0);
+    /// assert!(a.tan().is_err());
+    /// ```
+    pub fn tan(self) -> Result<T, TanUndefined> {
+        let c = self.radians.cos();
+        if classify_to_zero(c, None) == FloatSign::Zero {
+            return Err(TanUndefined);
+        }
+        Ok(self.radians.tan())
+    }
+
     /// Returns `(sin(angle), cos(angle))` using the stored radians.
     ///
     /// # Example
@@ -234,7 +311,7 @@ impl<T: Float> Angle<T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Angle;
+    use super::{Angle, TanUndefined};
 
     const PI: f64 = std::f64::consts::PI;
 
@@ -290,6 +367,45 @@ mod tests {
         let (s, c) = a.sin_cos();
         assert!(s.abs() < 1e-15);
         assert!((c - (-1.0)).abs() < 1e-15);
+    }
+
+    #[test]
+    fn sin_isolated() {
+        let a = Angle::<f64>::from_degrees(90.0);
+        assert!((a.sin() - 1.0).abs() < 1e-10);
+        let b = Angle::<f64>::from_radians(0.0);
+        assert!(b.sin().abs() < 1e-15);
+    }
+
+    #[test]
+    fn cos_isolated() {
+        let a = Angle::<f64>::from_degrees(0.0);
+        assert!((a.cos() - 1.0).abs() < 1e-10);
+        let b = Angle::<f64>::from_degrees(90.0);
+        assert!(b.cos().abs() < 1e-10);
+    }
+
+    #[test]
+    fn tan_ok() {
+        let a = Angle::<f64>::from_degrees(45.0);
+        let t = a.tan().unwrap();
+        assert!((t - 1.0).abs() < 1e-10);
+        let b = Angle::<f64>::from_radians(0.0);
+        assert!(b.tan().unwrap().abs() < 1e-15);
+    }
+
+    #[test]
+    fn tan_err_at_90_degrees() {
+        let a = Angle::<f64>::from_degrees(90.0);
+        let r = a.tan();
+        assert!(r.is_err());
+        assert_eq!(r.unwrap_err(), TanUndefined);
+    }
+
+    #[test]
+    fn tan_err_at_270_degrees() {
+        let a = Angle::<f64>::from_degrees(270.0);
+        assert!(a.tan().is_err());
     }
 
     #[test]
