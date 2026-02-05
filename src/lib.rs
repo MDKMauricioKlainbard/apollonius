@@ -51,7 +51,7 @@ mod utils;
 pub use crate::algebra::{
     points::{EuclideanMetric, MetricSquared, Point, Point2D, Point3D},
     vectors::{EuclideanVector, Vector, Vector2D, Vector3D, VectorMetricSquared},
-    matrix::Matrix
+    matrix::Matrix, angle::Angle
 };
 pub use crate::primitives::{
     Bounded, IntersectionResult, SpatialRelation, aabb::AABB, hyperplane::Hyperplane,
