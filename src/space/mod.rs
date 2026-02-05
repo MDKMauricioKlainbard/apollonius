@@ -1,11 +1,12 @@
 use crate::{Matrix, Vector};
+use num_traits::Float;
 
 #[derive(Clone, Copy, Debug)]
 pub enum LinearMap<T, const N: usize> {
     Rotation(Matrix<T, N>),
 }
 
-impl<T, const N: usize> LinearMap<T, N> {
+impl<T: Float, const N: usize> LinearMap<T, N> {
     /// Returns a mutable reference to the inner matrix when this is a [`Rotation`](Self::Rotation).
     pub fn as_rotation_mut(&mut self) -> Option<&mut Matrix<T, N>> {
         match self {
@@ -20,7 +21,7 @@ pub struct AffineTransform<T, const N: usize> {
     translation: Vector<T, N>,
 }
 
-impl<T, const N: usize> AffineTransform<T, N> {
+impl<T: Float, const N: usize> AffineTransform<T, N> {
     pub fn new(linear: LinearMap<T, N>, translation: Vector<T, N>) -> Self {
         Self {
             linear,

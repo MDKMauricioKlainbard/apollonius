@@ -7,7 +7,7 @@
 
 use crate::{Point, Vector};
 use num_traits::Float;
-use std::ops::{Add, AddAssign, Mul, Sub};
+use std::ops::{Add, Mul, Sub};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -19,8 +19,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 ///
 /// # Type parameters
 ///
-/// * `T` — element type, must implement [`Float`](num_traits::Float) (and [`AddAssign`] for
-///   multiplication).
+/// * `T` — element type, must implement [`Float`](num_traits::Float).
 /// * `N` — dimension (matrix size is N×N).
 ///
 /// # Serialization
@@ -102,7 +101,10 @@ impl<'de, T: Deserialize<'de>, const N: usize> Deserialize<'de> for Matrix<T, N>
     }
 }
 
-impl<T, const N: usize> Matrix<T, N> {
+impl<T, const N: usize> Matrix<T, N>
+where
+    T: Float,
+{
     /// Creates a matrix from a row-major array of shape `N×N`.
     ///
     /// # Example
@@ -155,12 +157,7 @@ impl<T, const N: usize> Matrix<T, N> {
     pub fn data_mut(&mut self) -> &mut [[T; N]; N] {
         &mut self.data
     }
-}
 
-impl<T, const N: usize> Matrix<T, N>
-where
-    T: Float,
-{
     /// Returns the N×N identity matrix (ones on the diagonal, zeros elsewhere).
     ///
     /// # Example
@@ -249,19 +246,18 @@ where
 /// ```
 impl<T, const N: usize> Mul for Matrix<T, N>
 where
-    T: Float + AddAssign,
+    T: Float,
 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
         let data = std::array::from_fn(|i| {
-            let row = std::array::from_fn(|j| {
+            std::array::from_fn(|j| {
                 let mut sum = T::zero();
                 for k in 0..N {
-                    sum += self.data[i][k] * rhs.data[k][j];
+                    sum = sum + self.data[i][k] * rhs.data[k][j];
                 }
                 sum
-            });
-            row
+            })
         });
         Self { data }
     }
@@ -282,14 +278,14 @@ where
 /// ```
 impl<T, const N: usize> Mul<Vector<T, N>> for Matrix<T, N>
 where
-    T: Float + AddAssign,
+    T: Float,
 {
     type Output = Vector<T, N>;
     fn mul(self, rhs: Vector<T, N>) -> Self::Output {
         let coords = std::array::from_fn(|i| {
             let mut sum = T::zero();
             for j in 0..N {
-                sum += self.data[i][j] * rhs.coords()[j];
+                sum = sum + self.data[i][j] * rhs.coords()[j];
             }
             sum
         });
@@ -311,14 +307,14 @@ where
 /// ```
 impl<T, const N: usize> Mul<Point<T, N>> for Matrix<T, N>
 where
-    T: Float + AddAssign,
+    T: Float,
 {
     type Output = Point<T, N>;
     fn mul(self, rhs: Point<T, N>) -> Self::Output {
         let coords = std::array::from_fn(|i| {
             let mut sum = T::zero();
             for j in 0..N {
-                sum += self.data[i][j] * rhs.coords()[j];
+                sum = sum + self.data[i][j] * rhs.coords()[j];
             }
             sum
         });

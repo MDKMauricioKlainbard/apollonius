@@ -1,5 +1,5 @@
 use num_traits::Float;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Sub};
 
 use crate::{Vector};
 
@@ -93,7 +93,7 @@ pub trait EuclideanMetric<T>: MetricSquared<T> {
 
 impl<T, const N: usize> Point<T, N>
 where
-    T: Copy,
+    T: Float,
 {
     /// Creates a new point from a fixed-size array of coordinates.
     ///
@@ -201,7 +201,7 @@ impl<T> From<(T, T, T)> for Point3D<T> {
 
 impl<T, const N: usize> From<Vector<T, N>> for Point<T, N>
 where
-    T: Copy,
+    T: Float,
 {
     /// Converts a [`Vector`] into a [`Point`], assuming the vector represents
     /// a position relative to the origin.
@@ -225,7 +225,7 @@ where
 
 impl<T, const N: usize> MetricSquared<T> for Point<T, N>
 where
-    T: Copy + Sub<Output = T> + Mul<Output = T> + std::iter::Sum,
+    T: Float + std::iter::Sum,
 {
     /// Calculates the squared Euclidean distance between two points.
     ///
@@ -273,7 +273,7 @@ where
 
 impl<T, const N: usize> Sub for Point<T, N>
 where
-    T: Copy + Sub<Output = T>,
+    T: Float,
 {
     type Output = Vector<T, N>;
 
@@ -297,7 +297,7 @@ where
 
 impl<T, const N: usize> Add<Vector<T, N>> for Point<T, N>
 where
-    T: Copy + Add<Output = T>,
+    T: Float,
 {
     type Output = Point<T, N>;
 
@@ -321,7 +321,7 @@ where
 
 impl<T, const N: usize> Sub<Vector<T, N>> for Point<T, N>
 where
-    T: Copy + Sub<Output = T>,
+    T: Float,
 {
     type Output = Point<T, N>;
 
@@ -350,8 +350,8 @@ mod points_tests {
 
     #[test]
     fn test_construction_and_conversions() {
-        let p_gen = Point::new([1, 2, 3]);
-        assert_eq!(p_gen.coords(), &[1, 2, 3]);
+        let p_gen = Point::new([1.0, 2.0, 3.0]);
+        assert_eq!(p_gen.coords(), &[1.0, 2.0, 3.0]);
 
         let p_from_arr = Point::new([1.5, 2.5]);
         assert_eq!(p_from_arr.coords(), &[1.5, 2.5]);
@@ -382,15 +382,15 @@ mod points_tests {
     }
 
     #[test]
-    fn test_distance_squared_integers() {
-        let p1: Point<i32, 2> = Point::new([1, 2]);
-        let p2 = Point::new([4, 6]);
-        assert_eq!(p1.distance_squared(&p2), 25);
+    fn test_distance_squared_floats() {
+        let p1 = Point::new([1.0, 2.0]);
+        let p2 = Point::new([4.0, 6.0]);
+        assert_relative_eq!(p1.distance_squared(&p2), 25.0);
     }
 
     #[test]
     fn test_properties_and_traits() {
-        let p1 = Point::new([1, 2]);
+        let p1 = Point::new([1.0, 2.0]);
         let p2 = p1;
 
         assert_eq!(p1.coords(), p2.coords());
@@ -413,10 +413,10 @@ mod points_tests {
         assert_relative_eq!(v.coords()[1], 5.0);
         assert_relative_eq!(v.coords()[2], 5.0);
 
-        let pi1 = Point::new([1, 2]);
-        let pi2 = Point::new([4, 6]);
-        let vi: Vector<i32, 2> = pi2 - pi1;
-        assert_eq!(vi.coords(), &[3, 4]);
+        let p3 = Point::new([1.0, 2.0]);
+        let p4 = Point::new([4.0, 6.0]);
+        let v2: Vector<f64, 2> = p4 - p3;
+        assert_eq!(v2.coords(), &[3.0, 4.0]);
     }
 }
 

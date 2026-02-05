@@ -30,7 +30,7 @@ pub struct Triangle<T, const N: usize> {
 
 impl<T, const N: usize> Triangle<T, N>
 where
-    T: Copy,
+    T: Float + std::iter::Sum,
 {
     /// Creates a new triangle from three vertices.
     ///
@@ -109,60 +109,7 @@ where
     pub fn vertices(&self) -> (Point<T, N>, Point<T, N>, Point<T, N>) {
         (self.a(), self.b(), self.c())
     }
-}
 
-impl<T, const N: usize> From<(Point<T, N>, Point<T, N>, Point<T, N>)> for Triangle<T, N>
-where
-    T: Copy,
-{
-    /// Converts a 3-tuple of points into a triangle.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::{Point, Triangle};
-    ///
-    /// let tri: Triangle<f64, 2> = Triangle::from((
-    ///     Point::new([0.0, 0.0]),
-    ///     Point::new([1.0, 0.0]),
-    ///     Point::new([0.0, 1.0]),
-    /// ));
-    /// assert_eq!(tri.c().coords()[1], 1.0);
-    /// ```
-    fn from(value: (Point<T, N>, Point<T, N>, Point<T, N>)) -> Self {
-        Self {
-            vertices: [value.0, value.1, value.2],
-        }
-    }
-}
-
-impl<T, const N: usize> From<[Point<T, N>; 3]> for Triangle<T, N>
-where
-    T: Copy,
-{
-    /// Converts an array of three points into a triangle.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::{Point, Triangle};
-    ///
-    /// let tri = Triangle::from([
-    ///     Point::new([0.0, 0.0]),
-    ///     Point::new([1.0, 0.0]),
-    ///     Point::new([0.0, 1.0]),
-    /// ]);
-    /// assert_eq!(tri.a().coords()[0], 0.0);
-    /// ```
-    fn from(value: [Point<T, N>; 3]) -> Self {
-        Self { vertices: value }
-    }
-}
-
-impl<T, const N: usize> Triangle<T, N>
-where
-    T: Float + std::iter::Sum,
-{
     /// Returns the centroid (geometric center) of the triangle: (a + b + c) / 3.
     ///
     /// # Example
@@ -225,9 +172,57 @@ where
     }
 }
 
+impl<T, const N: usize> From<(Point<T, N>, Point<T, N>, Point<T, N>)> for Triangle<T, N>
+where
+    T: Float + std::iter::Sum,
+{
+    /// Converts a 3-tuple of points into a triangle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Triangle};
+    ///
+    /// let tri: Triangle<f64, 2> = Triangle::from((
+    ///     Point::new([0.0, 0.0]),
+    ///     Point::new([1.0, 0.0]),
+    ///     Point::new([0.0, 1.0]),
+    /// ));
+    /// assert_eq!(tri.c().coords()[1], 1.0);
+    /// ```
+    fn from(value: (Point<T, N>, Point<T, N>, Point<T, N>)) -> Self {
+        Self {
+            vertices: [value.0, value.1, value.2],
+        }
+    }
+}
+
+impl<T, const N: usize> From<[Point<T, N>; 3]> for Triangle<T, N>
+where
+    T: Float + std::iter::Sum,
+{
+    /// Converts an array of three points into a triangle.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::{Point, Triangle};
+    ///
+    /// let tri = Triangle::from([
+    ///     Point::new([0.0, 0.0]),
+    ///     Point::new([1.0, 0.0]),
+    ///     Point::new([0.0, 1.0]),
+    /// ]);
+    /// assert_eq!(tri.a().coords()[0], 0.0);
+    /// ```
+    fn from(value: [Point<T, N>; 3]) -> Self {
+        Self { vertices: value }
+    }
+}
+
 impl<T, const N: usize> Bounded<T, N> for Triangle<T, N>
 where
-    T: Float,
+    T: Float + std::iter::Sum,
 {
     /// Returns the Axis-Aligned Bounding Box enclosing the three vertices.
     ///

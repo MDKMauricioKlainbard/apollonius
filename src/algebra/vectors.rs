@@ -7,8 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Trait for types that can calculate squared magnitude and dot products.
 ///
-/// These operations are mathematically valid for any type that supports multiplication
-/// and addition, including integers, without requiring square root operations.
+/// Implemented for [`Vector`] with [`Float`](num_traits::Float) element types.
 pub trait VectorMetricSquared<T> {
     /// Calculates the squared magnitude (squared norm) of the vector.
     fn magnitude_squared(&self) -> T;
@@ -84,7 +83,7 @@ pub type Vector3D<T> = Vector<T, 3>;
 
 impl<T, const N: usize> Vector<T, N>
 where
-    T: Copy,
+    T: Float,
 {
     /// Creates a new vector from an array of coordinates.
     ///
@@ -155,7 +154,7 @@ where
 
 impl<T, const N: usize> From<(&Point<T, N>, &Point<T, N>)> for Vector<T, N>
 where
-    T: Sub<Output = T> + Copy,
+    T: Float,
 {
     /// Creates a vector that represents the displacement from an initial to a final point.
     ///
@@ -172,13 +171,13 @@ where
     #[inline]
     fn from((initial, final_point): (&Point<T, N>, &Point<T, N>)) -> Self {
         let coords = std::array::from_fn(|i| final_point.coords()[i] - initial.coords()[i]);
-        Vector { coords }
+        Vector::new(coords)
     }
 }
 
 impl<T, const N: usize> From<&Point<T, N>> for Vector<T, N>
 where
-    T: Sub<Output = T> + Copy,
+    T: Float,
 {
     /// Converts a reference to a point into a vector from the origin to that point.
     ///
@@ -193,13 +192,11 @@ where
     /// ```
     #[inline]
     fn from(final_point: &Point<T, N>) -> Self {
-        Vector {
-            coords: *final_point.coords(),
-        }
+        Vector::new(*final_point.coords())
     }
 }
 
-impl<T> From<(T, T)> for Vector2D<T> {
+impl<T: Float> From<(T, T)> for Vector2D<T> {
     /// Converts a 2-element tuple into a [`Vector2D`].
     ///
     /// # Example
@@ -217,7 +214,7 @@ impl<T> From<(T, T)> for Vector2D<T> {
     }
 }
 
-impl<T> From<(T, T, T)> for Vector3D<T> {
+impl<T: Float> From<(T, T, T)> for Vector3D<T> {
     /// Converts a 3-element tuple into a [`Vector3D`].
     ///
     /// # Example
@@ -237,7 +234,7 @@ impl<T> From<(T, T, T)> for Vector3D<T> {
 
 impl<T, const N: usize> Add for Vector<T, N>
 where
-    T: Add<Output = T> + Copy,
+    T: Float,
 {
     type Output = Vector<T, N>;
 
@@ -262,7 +259,7 @@ where
 
 impl<T, const N: usize> Sub for Vector<T, N>
 where
-    T: Sub<Output = T> + Copy,
+    T: Float,
 {
     type Output = Vector<T, N>;
 
@@ -287,7 +284,7 @@ where
 
 impl<T, const N: usize> Mul<T> for Vector<T, N>
 where
-    T: Mul<Output = T> + Copy,
+    T: Float,
 {
     type Output = Vector<T, N>;
 
@@ -310,7 +307,7 @@ where
 
 impl<T, const N: usize> AddAssign for Vector<T, N>
 where
-    T: Add<Output = T> + Copy,
+    T: Float,
 {
     /// Performs in-place vector addition.
     #[inline]
@@ -322,7 +319,7 @@ where
 
 impl<T, const N: usize> SubAssign for Vector<T, N>
 where
-    T: Sub<Output = T> + Copy,
+    T: Float,
 {
     /// Performs in-place vector subtraction.
     #[inline]
@@ -352,7 +349,7 @@ impl<const N: usize> Mul<Vector<f64, N>> for f64 {
 
 impl<T, const N: usize> VectorMetricSquared<T> for Vector<T, N>
 where
-    T: Mul<Output = T> + std::iter::Sum + Copy,
+    T: Float + std::iter::Sum,
 {
     /// Returns the squared magnitude (squared length) of the vector.
     ///
@@ -376,9 +373,9 @@ where
     /// ```
     /// use apollonius::{Vector, VectorMetricSquared};
     ///
-    /// let v1 = Vector::new([1, 2]);
-    /// let v2 = Vector::new([3, 4]);
-    /// assert_eq!(v1.dot(&v2), 11); // (1*3) + (2*4)
+    /// let v1 = Vector::new([1.0, 2.0]);
+    /// let v2 = Vector::new([3.0, 4.0]);
+    /// assert_eq!(v1.dot(&v2), 11.0); // (1*3) + (2*4)
     /// ```
     #[inline]
     fn dot(&self, other: &Self) -> T {
@@ -470,15 +467,13 @@ where
         let [x1, y1] = *self.coords();
         let [x2, y2] = *other.coords();
 
-        Vector {
-            coords: [T::zero(), T::zero(), x1 * y2 - y1 * x2],
-        }
+        Vector::new([T::zero(), T::zero(), x1 * y2 - y1 * x2])
     }
 }
 
 impl<T> Vector<T, 3>
 where
-    T: Copy + Mul<Output = T> + Sub<Output = T>,
+    T: Float,
 {
     /// Calculates the cross product (3D vectors only).
     ///
@@ -490,10 +485,10 @@ where
     /// ```
     /// use apollonius::Vector3D;
     ///
-    /// let v1 = Vector3D::from((1, 0, 0));
-    /// let v2 = Vector3D::from((0, 1, 0));
+    /// let v1 = Vector3D::from((1.0, 0.0, 0.0));
+    /// let v2 = Vector3D::from((0.0, 1.0, 0.0));
     /// let cross = v1.cross(&v2);
-    /// assert_eq!(cross.coords(), &[0, 0, 1]);
+    /// assert_eq!(cross.coords(), &[0.0, 0.0, 1.0]);
     /// ```
     #[inline]
     pub fn cross(&self, other: &Self) -> Self {
@@ -513,8 +508,8 @@ mod vectors_tests {
 
     #[test]
     fn test_construction_and_conversions() {
-        let v_gen: Vector<i32, 3> = Vector::new([1, 2, 3]);
-        assert_eq!(v_gen.coords(), &[1, 2, 3]);
+        let v_gen: Vector<f64, 3> = Vector::new([1.0, 2.0, 3.0]);
+        assert_eq!(v_gen.coords(), &[1.0, 2.0, 3.0]);
 
         let p1 = Point::new([1.0, 2.0, 3.0]);
         let p2 = Point::new([4.0, 6.0, 8.0]);
@@ -605,10 +600,10 @@ mod vectors_tests {
         assert_relative_eq!(cross_vw.dot(&v), 0.0, epsilon = 1e-10);
         assert_relative_eq!(cross_vw.dot(&w), 0.0, epsilon = 1e-10);
 
-        let v_int: Vector3D<i32> = Vector3D::from((1, 0, 0));
-        let w_int = Vector3D::from((0, 1, 0));
-        let cross_int = v_int.cross(&w_int);
-        assert_eq!(cross_int.coords(), &[0, 0, 1]);
+        let v_f64: Vector3D<f64> = Vector3D::from((1.0, 0.0, 0.0));
+        let w_f64 = Vector3D::from((0.0, 1.0, 0.0));
+        let cross_f64 = v_f64.cross(&w_f64);
+        assert_eq!(cross_f64.coords(), &[0.0, 0.0, 1.0]);
     }
 
     #[test]
@@ -621,8 +616,8 @@ mod vectors_tests {
         let v_f32: Vector<f32, 2> = Vector::new([1.5, 2.5]);
         let _ = v_f32 * 2.0_f32;
 
-        let v_i32: Vector<i32, 3> = Vector::new([1, 2, 3]);
-        let _sum_i32 = v_i32 + Vector::new([4, 5, 6]);
+        let v_f64: Vector<f64, 3> = Vector::new([1.0, 2.0, 3.0]);
+        let _sum = v_f64 + Vector::new([4.0, 5.0, 6.0]);
     }
 }
 
