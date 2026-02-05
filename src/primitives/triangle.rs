@@ -17,11 +17,11 @@ use num_traits::Float;
 ///     Point::new([1.0, 0.0]),
 ///     Point::new([0.0, 1.0]),
 /// ]);
-/// assert_eq!(tri.a().coords, [0.0, 0.0]);
+/// assert_eq!(tri.a().coords(), &[0.0, 0.0]);
 /// assert_eq!(tri.area(), 0.5);
 /// let aabb = tri.aabb();
-/// assert_eq!(aabb.min.coords[0], 0.0);
-/// assert_eq!(aabb.max.coords[0], 1.0);
+/// assert_eq!(aabb.min().coords()[0], 0.0);
+/// assert_eq!(aabb.max().coords()[0], 1.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Triangle<T, const N: usize> {
@@ -43,7 +43,7 @@ where
     /// let b = Point::new([4.0, 0.0]);
     /// let c = Point::new([0.0, 3.0]);
     /// let tri = Triangle::new([a, b, c]);
-    /// assert_eq!(tri.b().coords[0], 4.0);
+    /// assert_eq!(tri.b().coords()[0], 4.0);
     /// ```
     pub fn new(vertices: [Point<T, N>; 3]) -> Self {
         Self { vertices }
@@ -67,6 +67,24 @@ where
         self.vertices[2]
     }
 
+    /// Returns a mutable reference to the first vertex.
+    #[inline]
+    pub fn a_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.vertices[0]
+    }
+
+    /// Returns a mutable reference to the second vertex.
+    #[inline]
+    pub fn b_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.vertices[1]
+    }
+
+    /// Returns a mutable reference to the third vertex.
+    #[inline]
+    pub fn c_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.vertices[2]
+    }
+
     /// Returns the three vertices as a tuple `(a, b, c)`.
     ///
     /// Convenient when several operations need the same vertices; avoids
@@ -83,9 +101,9 @@ where
     ///     Point::new([0.0, 1.0]),
     /// ]);
     /// let (a, b, c) = tri.vertices();
-    /// assert_eq!(a.coords[0], 0.0);
-    /// assert_eq!(b.coords[0], 1.0);
-    /// assert_eq!(c.coords[1], 1.0);
+    /// assert_eq!(a.coords()[0], 0.0);
+    /// assert_eq!(b.coords()[0], 1.0);
+    /// assert_eq!(c.coords()[1], 1.0);
     /// ```
     #[inline]
     pub fn vertices(&self) -> (Point<T, N>, Point<T, N>, Point<T, N>) {
@@ -109,7 +127,7 @@ where
     ///     Point::new([1.0, 0.0]),
     ///     Point::new([0.0, 1.0]),
     /// ));
-    /// assert_eq!(tri.c().coords[1], 1.0);
+    /// assert_eq!(tri.c().coords()[1], 1.0);
     /// ```
     fn from(value: (Point<T, N>, Point<T, N>, Point<T, N>)) -> Self {
         Self {
@@ -134,7 +152,7 @@ where
     ///     Point::new([1.0, 0.0]),
     ///     Point::new([0.0, 1.0]),
     /// ]);
-    /// assert_eq!(tri.a().coords[0], 0.0);
+    /// assert_eq!(tri.a().coords()[0], 0.0);
     /// ```
     fn from(value: [Point<T, N>; 3]) -> Self {
         Self { vertices: value }
@@ -159,8 +177,8 @@ where
     /// ]);
     /// let c = tri.centroid();
     /// let two_thirds = 2.0 / 3.0;
-    /// assert!((c.coords[0] - two_thirds).abs() < 1e-10);
-    /// assert!((c.coords[1] - two_thirds).abs() < 1e-10);
+    /// assert!((c.coords()[0] - two_thirds).abs() < 1e-10);
+    /// assert!((c.coords()[1] - two_thirds).abs() < 1e-10);
     /// ```
     pub fn centroid(&self) -> Point<T, N> {
         let (a, b, c) = self.vertices();
@@ -169,10 +187,10 @@ where
         let three = T::from(3.0).unwrap();
 
         for i in 0..N {
-            coords[i] = (a.coords[i] + b.coords[i] + c.coords[i]) / three;
+            coords[i] = (a.coords()[i] + b.coords()[i] + c.coords()[i]) / three;
         }
 
-        Point { coords }
+        Point::new(coords)
     }
 
     /// Returns the area of the triangle in N-dimensional space.
@@ -227,18 +245,15 @@ where
     ///     Point::new([0.0, 3.0]),
     /// ]);
     /// let aabb = tri.aabb();
-    /// assert_eq!(aabb.min.coords, [0.0, 0.0]);
-    /// assert_eq!(aabb.max.coords, [4.0, 3.0]);
+    /// assert_eq!(aabb.min().coords(), &[0.0, 0.0]);
+    /// assert_eq!(aabb.max().coords(), &[4.0, 3.0]);
     /// ```
     fn aabb(&self) -> AABB<T, N> {
         let (a, b, c) = self.vertices();
-        let min_coords = std::array::from_fn(|i| a.coords[i].min(b.coords[i]).min(c.coords[i]));
-        let max_coords = std::array::from_fn(|i| a.coords[i].max(b.coords[i]).max(c.coords[i]));
+        let min_coords = std::array::from_fn(|i| a.coords()[i].min(b.coords()[i]).min(c.coords()[i]));
+        let max_coords = std::array::from_fn(|i| a.coords()[i].max(b.coords()[i]).max(c.coords()[i]));
 
-        AABB {
-            min: Point { coords: min_coords },
-            max: Point { coords: max_coords },
-        }
+        AABB::new(Point::new(min_coords), Point::new(max_coords))
     }
 }
 
@@ -277,10 +292,10 @@ mod tests {
             Point::new([0.0, 3.0]),
         ]);
         let aabb = tri.aabb();
-        assert_eq!(aabb.min.coords[0], 0.0);
-        assert_eq!(aabb.min.coords[1], 0.0);
-        assert_eq!(aabb.max.coords[0], 4.0);
-        assert_eq!(aabb.max.coords[1], 3.0);
+        assert_eq!(aabb.min().coords()[0], 0.0);
+        assert_eq!(aabb.min().coords()[1], 0.0);
+        assert_eq!(aabb.max().coords()[0], 4.0);
+        assert_eq!(aabb.max().coords()[1], 3.0);
     }
 
     #[test]
@@ -292,8 +307,8 @@ mod tests {
             Point::new([0.0, 2.0, 0.0]),
         ]);
         let aabb = tri.aabb();
-        assert_eq!(aabb.min.coords, [0.0, 0.0, 0.0]);
-        assert_eq!(aabb.max.coords, [2.0, 2.0, 0.0]);
+        assert_eq!(aabb.min().coords(), &[0.0, 0.0, 0.0]);
+        assert_eq!(aabb.max().coords(), &[2.0, 2.0, 0.0]);
     }
 
     #[test]
@@ -306,8 +321,8 @@ mod tests {
         ]);
         let c = tri.centroid();
         let two_thirds = 2.0 / 3.0;
-        assert_relative_eq!(c.coords[0], two_thirds);
-        assert_relative_eq!(c.coords[1], two_thirds);
+        assert_relative_eq!(c.coords()[0], two_thirds);
+        assert_relative_eq!(c.coords()[1], two_thirds);
     }
 
     #[test]
@@ -320,9 +335,9 @@ mod tests {
         ]);
         let c = tri.centroid();
         let third = 1.0 / 3.0;
-        assert_relative_eq!(c.coords[0], third);
-        assert_relative_eq!(c.coords[1], third);
-        assert_relative_eq!(c.coords[2], third);
+        assert_relative_eq!(c.coords()[0], third);
+        assert_relative_eq!(c.coords()[1], third);
+        assert_relative_eq!(c.coords()[2], third);
     }
 
     #[test]

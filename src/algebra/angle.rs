@@ -173,6 +173,12 @@ impl<T: Float> Angle<T> {
         self.radians * (deg_conv / pi)
     }
 
+    /// Returns a mutable reference to the angle value in radians.
+    #[inline]
+    pub fn radians_mut(&mut self) -> &mut T {
+        &mut self.radians
+    }
+
     /// Returns the sine of the angle.
     ///
     /// # Example

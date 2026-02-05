@@ -20,7 +20,7 @@ use num_traits::Float;
 /// let segment = Segment::new(start, end);
 ///
 /// assert_eq!(segment.length(), 10.0);
-/// assert_eq!(segment.midpoint().coords[0], 5.0);
+/// assert_eq!(segment.midpoint().coords()[0], 5.0);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -68,6 +68,18 @@ where
         self.end = new_end;
     }
 
+    /// Returns a mutable reference to the start point.
+    #[inline]
+    pub fn start_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.start
+    }
+
+    /// Returns a mutable reference to the end point.
+    #[inline]
+    pub fn end_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.end
+    }
+
     /// Returns the squared length of the segment.
     #[inline]
     pub fn length_squared(&self) -> T {
@@ -97,11 +109,14 @@ where
     ///
     /// let seg = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
     /// let aabb = seg.aabb();
-    /// assert_eq!(aabb.min.coords, [0.0, 0.0]);
-    /// assert_eq!(aabb.max.coords, [10.0, 10.0]);
+    /// assert_eq!(aabb.min().coords(), &[0.0, 0.0]);
+    /// assert_eq!(aabb.max().coords(), &[10.0, 10.0]);
     /// ```
     fn aabb(&self) -> AABB<T, N> {
-        let (start, end) = (self.start().coords, self.end.coords);
+        let start_pt = self.start();
+        let end_pt = self.end();
+        let start = start_pt.coords();
+        let end = end_pt.coords();
 
         let min_coords = std::array::from_fn(|i| start[i].min(end[i]));
         let max_coords = std::array::from_fn(|i| start[i].max(end[i]));
@@ -174,7 +189,7 @@ where
     /// let segment = Segment::new(Point::new([-5.0, 0.0]), Point::new([0.0, 0.0]));
     ///
     /// if let IntersectionResult::Single(p) = segment.intersect_hypersphere(&circle) {
-    ///     assert_eq!(p.coords[0], -2.0);
+    ///     assert_eq!(p.coords()[0], -2.0);
     /// }
     /// ```
     pub fn intersect_hypersphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
@@ -245,7 +260,7 @@ where
     /// let segment = Segment::new(Point::new([0.0, -1.0]), Point::new([0.0, 1.0]));
     ///
     /// if let IntersectionResult::Single(p) = segment.intersect_hyperplane(&plane) {
-    ///     assert_eq!(p.coords[1], 0.0);
+    ///     assert_eq!(p.coords()[1], 0.0);
     /// }
     /// ```
     #[inline]
@@ -290,8 +305,8 @@ where
     /// let s2 = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
     ///
     /// if let IntersectionResult::Single(p) = s1.intersect_segment(&s2) {
-    ///     assert_eq!(p.coords[0], 5.0);
-    ///     assert_eq!(p.coords[1], 5.0);
+    ///     assert_eq!(p.coords()[0], 5.0);
+    ///     assert_eq!(p.coords()[1], 5.0);
     /// }
     /// ```
     pub fn intersect_segment(&self, other: &Segment<T, N>) -> IntersectionResult<T, N> {
@@ -402,7 +417,7 @@ where
     /// let p = Point::new([-5.0, 5.0]);
     ///
     /// // Should clamp to the start point
-    /// assert_eq!(segment.closest_point(&p).coords[0], 0.0);
+    /// assert_eq!(segment.closest_point(&p).coords()[0], 0.0);
     /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let mag_sq = self.length_squared();
@@ -432,13 +447,13 @@ mod tests {
         let seg = Segment::new(start, end);
 
         let p_behind = Point::new([-5.0, 5.0]);
-        assert_eq!(seg.closest_point(&p_behind).coords, [0.0, 0.0]);
+        assert_eq!(seg.closest_point(&p_behind).coords(), &[0.0, 0.0]);
 
         let p_ahead = Point::new([15.0, 5.0]);
-        assert_eq!(seg.closest_point(&p_ahead).coords, [10.0, 0.0]);
+        assert_eq!(seg.closest_point(&p_ahead).coords(), &[10.0, 0.0]);
 
         let p_mid = Point::new([5.0, 10.0]);
-        assert_eq!(seg.closest_point(&p_mid).coords, [5.0, 0.0]);
+        assert_eq!(seg.closest_point(&p_mid).coords(), &[5.0, 0.0]);
     }
 
     #[test]
@@ -456,17 +471,17 @@ mod tests {
         let seg = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 20.0]));
         let mid = seg.midpoint();
 
-        assert_relative_eq!(mid.coords[0], 5.0);
-        assert_relative_eq!(mid.coords[1], 15.0);
+        assert_relative_eq!(mid.coords()[0], 5.0);
+        assert_relative_eq!(mid.coords()[1], 15.0);
     }
 
     #[test]
     fn test_segment_at_parameter() {
         let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
 
-        assert_relative_eq!(seg.at(0.2).coords[0], 2.0);
-        assert_relative_eq!(seg.at(1.0).coords[0], 10.0);
-        assert_relative_eq!(seg.at(1.5).coords[0], 15.0);
+        assert_relative_eq!(seg.at(0.2).coords()[0], 2.0);
+        assert_relative_eq!(seg.at(1.0).coords()[0], 10.0);
+        assert_relative_eq!(seg.at(1.5).coords()[0], 15.0);
     }
 
     #[test]
@@ -474,8 +489,8 @@ mod tests {
         let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([0.0, 10.0]));
         let dir = seg.direction().expect("Should have direction");
 
-        assert_relative_eq!(dir.coords[0], 0.0);
-        assert_relative_eq!(dir.coords[1], 1.0);
+        assert_relative_eq!(dir.coords()[0], 0.0);
+        assert_relative_eq!(dir.coords()[1], 1.0);
 
         let point_seg = Segment::new(Point::new([1.0, 1.0]), Point::new([1.0, 1.0]));
         assert!(point_seg.direction().is_none());
@@ -578,8 +593,8 @@ mod tests {
         let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([10.0, 0.0]));
 
         if let IntersectionResult::Single(p) = seg.intersect_hypersphere(&sphere) {
-            assert_relative_eq!(p.coords[0], 5.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords[1], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords()[0], 5.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords()[1], 0.0, epsilon = 1e-6);
         } else {
             panic!("Expected single intersection point at (5, 0)");
         }
@@ -591,8 +606,8 @@ mod tests {
         let seg = Segment::new(Point::new([-10.0, 0.0]), Point::new([10.0, 0.0]));
 
         if let IntersectionResult::Secant(p1, p2) = seg.intersect_hypersphere(&sphere) {
-            let x1 = p1.coords[0];
-            let x2 = p2.coords[0];
+            let x1 = p1.coords()[0];
+            let x2 = p2.coords()[0];
             assert!((x1.abs() - 5.0).abs() < 1e-6);
             assert!((x2.abs() - 5.0).abs() < 1e-6);
             assert!((x1 - x2).abs() > 9.0); // Points are far apart
@@ -607,8 +622,8 @@ mod tests {
         let seg = Segment::new(Point::new([-10.0, 5.0]), Point::new([10.0, 5.0]));
 
         if let IntersectionResult::Tangent(p) = seg.intersect_hypersphere(&sphere) {
-            assert_relative_eq!(p.coords[0], 0.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords[1], 5.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords()[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords()[1], 5.0, epsilon = 1e-6);
         } else {
             panic!("Expected tangent intersection at (0, 5)");
         }
@@ -625,8 +640,8 @@ mod tests {
             // The real intersection is at x = sqrt(r^2 - y^2) = sqrt(25 - 1) = sqrt(24)
             let expected_x = 24.0f64.sqrt();
 
-            assert_relative_eq!(p.coords[0], expected_x, epsilon = 1e-6);
-            assert_relative_eq!(p.coords[1], 1.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords()[0], expected_x, epsilon = 1e-6);
+            assert_relative_eq!(p.coords()[1], 1.0, epsilon = 1e-6);
 
             // CRITICAL CHECK: The point must actually be on the sphere surface
             let dist_to_center = (p - sphere.center()).magnitude();
@@ -643,10 +658,10 @@ mod tests {
         let aabb = seg.aabb();
 
         // Min should be (0, 0), Max should be (10, 10)
-        assert_relative_eq!(aabb.min.coords[0], 0.0);
-        assert_relative_eq!(aabb.min.coords[1], 0.0);
-        assert_relative_eq!(aabb.max.coords[0], 10.0);
-        assert_relative_eq!(aabb.max.coords[1], 10.0);
+        assert_relative_eq!(aabb.min().coords()[0], 0.0);
+        assert_relative_eq!(aabb.min().coords()[1], 0.0);
+        assert_relative_eq!(aabb.max().coords()[0], 10.0);
+        assert_relative_eq!(aabb.max().coords()[1], 10.0);
     }
 
     #[test]
@@ -657,10 +672,10 @@ mod tests {
         seg.set_start(Point::new([-10.0, -10.0]));
         let aabb = seg.aabb();
 
-        assert_relative_eq!(aabb.min.coords[0], -10.0);
-        assert_relative_eq!(aabb.min.coords[1], -10.0);
-        assert_relative_eq!(aabb.max.coords[0], 5.0);
-        assert_relative_eq!(aabb.max.coords[1], 5.0);
+        assert_relative_eq!(aabb.min().coords()[0], -10.0);
+        assert_relative_eq!(aabb.min().coords()[1], -10.0);
+        assert_relative_eq!(aabb.max().coords()[0], 5.0);
+        assert_relative_eq!(aabb.max().coords()[1], 5.0);
     }
 
     #[test]
@@ -671,9 +686,9 @@ mod tests {
         seg.set_end(Point::new([1.0, 2.0]));
         let aabb = seg.aabb();
 
-        assert_relative_eq!(aabb.min.coords[0], 0.0);
-        assert_relative_eq!(aabb.max.coords[0], 1.0);
-        assert_relative_eq!(aabb.max.coords[1], 2.0);
+        assert_relative_eq!(aabb.min().coords()[0], 0.0);
+        assert_relative_eq!(aabb.max().coords()[0], 1.0);
+        assert_relative_eq!(aabb.max().coords()[1], 2.0);
     }
 
     #[test]
@@ -686,8 +701,8 @@ mod tests {
 
         let aabb = seg.aabb();
         // AABB should still be (0,0) to (10,10)
-        assert_relative_eq!(aabb.min.coords[0], 0.0);
-        assert_relative_eq!(aabb.max.coords[0], 10.0);
+        assert_relative_eq!(aabb.min().coords()[0], 0.0);
+        assert_relative_eq!(aabb.max().coords()[0], 10.0);
     }
 
     #[test]
@@ -696,8 +711,8 @@ mod tests {
         let s2 = Segment::new(Point::new([0.0, 10.0]), Point::new([10.0, 0.0]));
 
         if let IntersectionResult::Single(p) = s1.intersect_segment(&s2) {
-            assert_relative_eq!(p.coords[0], 5.0);
-            assert_relative_eq!(p.coords[1], 5.0);
+            assert_relative_eq!(p.coords()[0], 5.0);
+            assert_relative_eq!(p.coords()[1], 5.0);
         } else {
             panic!("Expected single intersection at (5, 5)");
         }
@@ -717,7 +732,7 @@ mod tests {
         let s2 = Segment::new(Point::new([5.0, 0.0]), Point::new([10.0, 0.0]));
 
         if let IntersectionResult::Single(p) = s1.intersect_segment(&s2) {
-            assert_relative_eq!(p.coords[0], 5.0);
+            assert_relative_eq!(p.coords()[0], 5.0);
         } else {
             panic!("Expected single point intersection at endpoint (5, 0)");
         }

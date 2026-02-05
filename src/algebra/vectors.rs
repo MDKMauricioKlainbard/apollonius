@@ -44,12 +44,12 @@ where
 /// use apollonius::Vector;
 ///
 /// let v = Vector::new([1.0, 2.0, 3.0]);
-/// assert_eq!(v.coords, [1.0, 2.0, 3.0]);
+/// assert_eq!(v.coords(), &[1.0, 2.0, 3.0]);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector<T, const N: usize> {
     /// The components of the vector along each of the N axes.
-    pub coords: [T; N],
+    coords: [T; N],
 }
 
 #[cfg(feature = "serde")]
@@ -94,11 +94,62 @@ where
     /// use apollonius::Vector;
     ///
     /// let v = Vector::new([1.0, 2.0, 3.0]);
-    /// assert_eq!(v.coords, [1.0, 2.0, 3.0]);
+    /// assert_eq!(v.coords(), &[1.0, 2.0, 3.0]);
     /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
+    }
+
+    /// Returns a reference to the coordinate array.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector;
+    ///
+    /// let v = Vector::new([1.0, 2.0]);
+    /// assert_eq!(v.coords()[0], 1.0);
+    /// assert_eq!(v.coords()[1], 2.0);
+    /// ```
+    #[inline]
+    pub fn coords(&self) -> &[T; N] {
+        &self.coords
+    }
+
+    /// Sets the coordinate array.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector;
+    ///
+    /// let mut v = Vector::new([0.0, 0.0]);
+    /// v.set_coords([3.0, 4.0]);
+    /// assert_eq!(v.coords(), &[3.0, 4.0]);
+    /// ```
+    #[inline]
+    pub fn set_coords(&mut self, coords: [T; N]) {
+        self.coords = coords;
+    }
+
+    /// Returns a mutable reference to the coordinate array.
+    ///
+    /// Useful in simulations for in-place updates (e.g. `v.coords_mut()[1] += force`)
+    /// without copying.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Vector;
+    ///
+    /// let mut v = Vector::new([1.0, 2.0]);
+    /// v.coords_mut()[1] += 1.0;
+    /// assert_eq!(v.coords(), &[1.0, 3.0]);
+    /// ```
+    #[inline]
+    pub fn coords_mut(&mut self) -> &mut [T; N] {
+        &mut self.coords
     }
 }
 
@@ -116,11 +167,11 @@ where
     /// let a = Point::new([1.0, 2.0]);
     /// let b = Point::new([4.0, 6.0]);
     /// let v: Vector<f64, 2> = Vector::from((&a, &b));
-    /// assert_eq!(v.coords, [3.0, 4.0]);
+    /// assert_eq!(v.coords(), &[3.0, 4.0]);
     /// ```
     #[inline]
     fn from((initial, final_point): (&Point<T, N>, &Point<T, N>)) -> Self {
-        let coords = std::array::from_fn(|i| final_point.coords[i] - initial.coords[i]);
+        let coords = std::array::from_fn(|i| final_point.coords()[i] - initial.coords()[i]);
         Vector { coords }
     }
 }
@@ -138,12 +189,12 @@ where
     ///
     /// let p = Point::new([2.0, 3.0]);
     /// let v = Vector::from(&p);
-    /// assert_eq!(v.coords, [2.0, 3.0]);
+    /// assert_eq!(v.coords(), &[2.0, 3.0]);
     /// ```
     #[inline]
     fn from(final_point: &Point<T, N>) -> Self {
         Vector {
-            coords: final_point.coords,
+            coords: *final_point.coords(),
         }
     }
 }
@@ -157,7 +208,7 @@ impl<T> From<(T, T)> for Vector2D<T> {
     /// use apollonius::Vector2D;
     ///
     /// let v = Vector2D::from((1.0, 2.0));
-    /// assert_eq!(v.coords, [1.0, 2.0]);
+    /// assert_eq!(v.coords(), &[1.0, 2.0]);
     /// ```
     #[inline]
     fn from(value: (T, T)) -> Self {
@@ -175,7 +226,7 @@ impl<T> From<(T, T, T)> for Vector3D<T> {
     /// use apollonius::Vector3D;
     ///
     /// let v = Vector3D::from((1.0, 2.0, 3.0));
-    /// assert_eq!(v.coords, [1.0, 2.0, 3.0]);
+    /// assert_eq!(v.coords(), &[1.0, 2.0, 3.0]);
     /// ```
     #[inline]
     fn from(value: (T, T, T)) -> Self {
@@ -200,11 +251,11 @@ where
     /// let u = Vector::new([1.0, 2.0]);
     /// let v = Vector::new([3.0, 4.0]);
     /// let w = u + v;
-    /// assert_eq!(w.coords, [4.0, 6.0]);
+    /// assert_eq!(w.coords(), &[4.0, 6.0]);
     /// ```
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
-        let coords = std::array::from_fn(|i| self.coords[i] + rhs.coords[i]);
+        let coords = std::array::from_fn(|i| self.coords()[i] + rhs.coords()[i]);
         Self { coords }
     }
 }
@@ -225,11 +276,11 @@ where
     /// let u = Vector::new([4.0, 5.0]);
     /// let v = Vector::new([1.0, 2.0]);
     /// let w = u - v;
-    /// assert_eq!(w.coords, [3.0, 3.0]);
+    /// assert_eq!(w.coords(), &[3.0, 3.0]);
     /// ```
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
-        let coords = std::array::from_fn(|i| self.coords[i] - rhs.coords[i]);
+        let coords = std::array::from_fn(|i| self.coords()[i] - rhs.coords()[i]);
         Self { coords }
     }
 }
@@ -248,40 +299,36 @@ where
     /// use apollonius::Vector;
     ///
     /// let v = Vector::new([1.0, 2.0]) * 2.0;
-    /// assert_eq!(v.coords, [2.0, 4.0]);
+    /// assert_eq!(v.coords(), &[2.0, 4.0]);
     /// ```
     #[inline]
     fn mul(self, scalar: T) -> Self::Output {
-        let coords = self.coords.map(|coord| coord * scalar);
+        let coords = std::array::from_fn(|i| self.coords()[i] * scalar);
         Self { coords }
     }
 }
 
 impl<T, const N: usize> AddAssign for Vector<T, N>
 where
-    T: AddAssign + Copy,
+    T: Add<Output = T> + Copy,
 {
     /// Performs in-place vector addition.
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
-        self.coords
-            .iter_mut()
-            .zip(rhs.coords.iter())
-            .for_each(|(coord, rhs_coord)| *coord += *rhs_coord);
+        let coords = std::array::from_fn(|i| self.coords()[i] + rhs.coords()[i]);
+        self.set_coords(coords);
     }
 }
 
 impl<T, const N: usize> SubAssign for Vector<T, N>
 where
-    T: SubAssign + Copy,
+    T: Sub<Output = T> + Copy,
 {
     /// Performs in-place vector subtraction.
     #[inline]
     fn sub_assign(&mut self, rhs: Self) {
-        self.coords
-            .iter_mut()
-            .zip(rhs.coords.iter())
-            .for_each(|(coord, rhs_coord)| *coord -= *rhs_coord);
+        let coords = std::array::from_fn(|i| self.coords()[i] - rhs.coords()[i]);
+        self.set_coords(coords);
     }
 }
 
@@ -319,7 +366,7 @@ where
     /// ```
     #[inline]
     fn magnitude_squared(&self) -> T {
-        self.coords.iter().map(|coord| *coord * *coord).sum()
+        self.coords().iter().map(|coord| *coord * *coord).sum()
     }
 
     /// Calculates the dot product between two vectors.
@@ -335,9 +382,9 @@ where
     /// ```
     #[inline]
     fn dot(&self, other: &Self) -> T {
-        self.coords
+        self.coords()
             .iter()
-            .zip(other.coords.iter())
+            .zip(other.coords().iter())
             .map(|(a, b)| *a * *b)
             .sum()
     }
@@ -374,7 +421,7 @@ where
     ///
     /// let v = Vector::new([3.0, 0.0]);
     /// let unit = v.normalize().unwrap();
-    /// assert_eq!(unit.coords[0], 1.0);
+    /// assert_eq!(unit.coords()[0], 1.0);
     /// ```
     #[inline]
     fn normalize(&self) -> Option<Self> {
@@ -405,7 +452,7 @@ where
     /// let u = Vector2D::from((1.0, 0.0));
     /// let v = Vector2D::from((0.0, 1.0));
     /// let w = u.cross(&v);
-    /// assert_eq!(w.coords, [0.0, 0.0, 1.0]);
+    /// assert_eq!(w.coords(), &[0.0, 0.0, 1.0]);
     /// ```
     ///
     /// Signed area of the parallelogram (z-component):
@@ -416,12 +463,12 @@ where
     /// let u = Vector2D::from((3.0, 0.0));
     /// let v = Vector2D::from((0.0, 4.0));
     /// let w = u.cross(&v);
-    /// assert_eq!(w.coords[2], 12.0); // 3*4 - 0*0
+    /// assert_eq!(w.coords()[2], 12.0); // 3*4 - 0*0
     /// ```
     #[inline]
     pub fn cross(&self, other: &Self) -> Vector<T, 3> {
-        let [x1, y1] = self.coords;
-        let [x2, y2] = other.coords;
+        let [x1, y1] = *self.coords();
+        let [x2, y2] = *other.coords();
 
         Vector {
             coords: [T::zero(), T::zero(), x1 * y2 - y1 * x2],
@@ -446,12 +493,12 @@ where
     /// let v1 = Vector3D::from((1, 0, 0));
     /// let v2 = Vector3D::from((0, 1, 0));
     /// let cross = v1.cross(&v2);
-    /// assert_eq!(cross.coords, [0, 0, 1]);
+    /// assert_eq!(cross.coords(), &[0, 0, 1]);
     /// ```
     #[inline]
     pub fn cross(&self, other: &Self) -> Self {
-        let [x1, y1, z1] = self.coords;
-        let [x2, y2, z2] = other.coords;
+        let [x1, y1, z1] = *self.coords();
+        let [x2, y2, z2] = *other.coords();
 
         Self {
             coords: [y1 * z2 - z1 * y2, z1 * x2 - x1 * z2, x1 * y2 - y1 * x2],
@@ -467,21 +514,21 @@ mod vectors_tests {
     #[test]
     fn test_construction_and_conversions() {
         let v_gen: Vector<i32, 3> = Vector::new([1, 2, 3]);
-        assert_eq!(v_gen.coords, [1, 2, 3]);
+        assert_eq!(v_gen.coords(), &[1, 2, 3]);
 
         let p1 = Point::new([1.0, 2.0, 3.0]);
         let p2 = Point::new([4.0, 6.0, 8.0]);
         let v_from_pts: Vector<f64, 3> = Vector::from((&p1, &p2));
-        assert_eq!(v_from_pts.coords, [3.0, 4.0, 5.0]);
+        assert_eq!(v_from_pts.coords(), &[3.0, 4.0, 5.0]);
 
         let v2d: Vector2D<f32> = Vector2D::from((1.0, 2.0));
-        assert_eq!(v2d.coords, [1.0, 2.0]);
+        assert_eq!(v2d.coords(), &[1.0, 2.0]);
 
         let v3d: Vector3D<f32> = Vector3D::from((1.0, 2.0, 3.0));
-        assert_eq!(v3d.coords, [1.0, 2.0, 3.0]);
+        assert_eq!(v3d.coords(), &[1.0, 2.0, 3.0]);
 
         let alias: Vector3D<f64> = Vector::new([1.0, 2.0, 3.0]);
-        assert_eq!(alias.coords, [1.0, 2.0, 3.0]);
+        assert_eq!(alias.coords(), &[1.0, 2.0, 3.0]);
     }
     #[test]
     fn test_arithmetic_operations() {
@@ -489,30 +536,30 @@ mod vectors_tests {
         let v2 = Vector::new([4.0, 5.0, 6.0]);
 
         let sum = v1 + v2;
-        assert_relative_eq!(sum.coords[0], 5.0);
-        assert_relative_eq!(sum.coords[1], 7.0);
-        assert_relative_eq!(sum.coords[2], 9.0);
+        assert_relative_eq!(sum.coords()[0], 5.0);
+        assert_relative_eq!(sum.coords()[1], 7.0);
+        assert_relative_eq!(sum.coords()[2], 9.0);
 
         let diff = v2 - v1;
-        assert_relative_eq!(diff.coords[0], 3.0);
-        assert_relative_eq!(diff.coords[1], 3.0);
-        assert_relative_eq!(diff.coords[2], 3.0);
+        assert_relative_eq!(diff.coords()[0], 3.0);
+        assert_relative_eq!(diff.coords()[1], 3.0);
+        assert_relative_eq!(diff.coords()[2], 3.0);
 
         let scaled_r = v1 * 2.0;
-        assert_eq!(scaled_r.coords, [2.0, 4.0, 6.0]);
+        assert_eq!(scaled_r.coords(), &[2.0, 4.0, 6.0]);
 
         let scaled_l_f32: Vector<f32, 2> = 3.0_f32 * Vector::new([1.0, 2.0]);
-        assert_eq!(scaled_l_f32.coords, [3.0, 6.0]);
+        assert_eq!(scaled_l_f32.coords(), &[3.0, 6.0]);
 
         let scaled_l_f64: Vector<f64, 2> = 3.0_f64 * Vector::new([1.0, 2.0]);
-        assert_eq!(scaled_l_f64.coords, [3.0, 6.0]);
+        assert_eq!(scaled_l_f64.coords(), &[3.0, 6.0]);
 
         let mut v = Vector::new([1.0, 2.0]);
         v += Vector::new([3.0, 4.0]);
-        assert_eq!(v.coords, [4.0, 6.0]);
+        assert_eq!(v.coords(), &[4.0, 6.0]);
 
         v -= Vector::new([1.0, 2.0]);
-        assert_eq!(v.coords, [3.0, 4.0]);
+        assert_eq!(v.coords(), &[3.0, 4.0]);
     }
 
     #[test]
@@ -533,7 +580,7 @@ mod vectors_tests {
         let normalized = v.normalize().unwrap();
         assert_relative_eq!(normalized.magnitude(), 1.0);
 
-        assert_relative_eq!(normalized.coords[0] / v.coords[0], 0.2);
+        assert_relative_eq!(normalized.coords()[0] / v.coords()[0], 0.2);
 
         let zero_vec: Vector<f64, 3> = Vector::new([0.0, 0.0, 0.0]);
         assert!(zero_vec.normalize().is_none());
@@ -544,13 +591,13 @@ mod vectors_tests {
         let v1 = Vector3D::from((1.0, 0.0, 0.0));
         let v2 = Vector3D::from((0.0, 1.0, 0.0));
         let cross = v1.cross(&v2);
-        assert_relative_eq!(cross.coords[0], 0.0);
-        assert_relative_eq!(cross.coords[1], 0.0);
-        assert_relative_eq!(cross.coords[2], 1.0);
+        assert_relative_eq!(cross.coords()[0], 0.0);
+        assert_relative_eq!(cross.coords()[1], 0.0);
+        assert_relative_eq!(cross.coords()[2], 1.0);
 
         let v = Vector3D::from((3.0, -2.0, 5.0));
         let self_cross = v.cross(&v);
-        assert!(self_cross.coords.iter().all(|&c| c.abs() < 1e-10));
+        assert!(self_cross.coords().iter().all(|&c| c.abs() < 1e-10));
 
         let v = Vector3D::from((2.0, 3.0, 4.0));
         let w = Vector3D::from((5.0, 6.0, 7.0));
@@ -561,14 +608,14 @@ mod vectors_tests {
         let v_int: Vector3D<i32> = Vector3D::from((1, 0, 0));
         let w_int = Vector3D::from((0, 1, 0));
         let cross_int = v_int.cross(&w_int);
-        assert_eq!(cross_int.coords, [0, 0, 1]);
+        assert_eq!(cross_int.coords(), &[0, 0, 1]);
     }
 
     #[test]
     fn test_traits_and_types() {
         let v1 = Vector::new([1.0, 2.0]);
         let v2 = v1;
-        assert_eq!(v1.coords, v2.coords);
+        assert_eq!(v1.coords(), v2.coords());
         println!("{:?}", v1);
 
         let v_f32: Vector<f32, 2> = Vector::new([1.5, 2.5]);

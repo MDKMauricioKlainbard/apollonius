@@ -18,7 +18,7 @@ use num_traits::Float;
 /// let normal = Vector::new([0.0, 1.0, 0.0]); // Y-axis normal (horizontal plane)
 /// let plane = Hyperplane::new(origin, normal);
 ///
-/// assert_eq!(plane.normal().coords[1], 1.0);
+/// assert_eq!(plane.normal().coords()[1], 1.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -44,7 +44,7 @@ where
     /// use apollonius::{Point, Vector, Hyperplane};
     ///
     /// let plane = Hyperplane::new(Point::new([0.0, 0.0]), Vector::new([0.0, 5.0]));
-    /// assert_eq!(plane.normal().coords[1], 1.0); // Normalized automatically
+    /// assert_eq!(plane.normal().coords()[1], 1.0); // Normalized automatically
     /// ```
     pub fn new(origin: Point<T, N>, normal: Vector<T, N>) -> Self {
         Self {
@@ -79,14 +79,24 @@ where
         self.normal = Self::normal_or_default(v)
     }
 
+    /// Returns a mutable reference to the origin point.
+    #[inline]
+    pub fn origin_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.origin
+    }
+
+    /// Returns a mutable reference to the normal vector.
+    ///
+    /// Note: mutating the normal does not re-normalize it; use [`set_normal`](Self::set_normal) to keep it unit length.
+    #[inline]
+    pub fn normal_mut(&mut self) -> &mut Vector<T, N> {
+        &mut self.normal
+    }
+
     /// Internal helper to ensure the normal vector is normalized.
     fn normal_or_default(v: &Vector<T, N>) -> Vector<T, N> {
         v.normalize().unwrap_or_else(|| {
-            let mut default = Vector {
-                coords: [T::zero(); N],
-            };
-            default.coords[0] = T::one();
-            default
+            Vector::new(std::array::from_fn(|i| if i == 0 { T::one() } else { T::zero() }))
         })
     }
 
@@ -160,7 +170,7 @@ where
     /// let segment = Segment::new(Point::new([0.0, -1.0]), Point::new([0.0, 1.0]));
     ///
     /// if let IntersectionResult::Single(p) = plane.intersect_segment(&segment) {
-    ///     assert_eq!(p.coords[1], 0.0);
+    ///     assert_eq!(p.coords()[1], 0.0);
     /// }
     /// ```
     pub fn intersect_segment(&self, segment: &Segment<T, N>) -> IntersectionResult<T, N> {
@@ -271,7 +281,7 @@ where
     /// let sphere = Hypersphere::new(Point::new([5.0, 0.0, 0.0]), 5.0);
     ///
     /// if let IntersectionResult::Tangent(p) = wall.intersect_hypersphere(&sphere) {
-    ///     assert_eq!(p.coords[0], 10.0);
+    ///     assert_eq!(p.coords()[0], 10.0);
     /// } else {
     ///     panic!("Expected Tangent contact at x = 10");
     /// }
@@ -295,8 +305,8 @@ mod tests {
         let p = Point::new([10.0, 10.0, 5.0]);
         let projected = plane.closest_point(&p);
 
-        assert_relative_eq!(projected.coords[2], 0.0);
-        assert_relative_eq!(projected.coords[0], 10.0);
+        assert_relative_eq!(projected.coords()[2], 0.0);
+        assert_relative_eq!(projected.coords()[0], 10.0);
     }
 
     #[test]
@@ -306,7 +316,7 @@ mod tests {
         let seg = Segment::new(Point::new([0.0, -5.0, 0.0]), Point::new([0.0, 5.0, 0.0]));
 
         if let IntersectionResult::Single(p) = plane.intersect_segment(&seg) {
-            assert_relative_eq!(p.coords[1], 0.0);
+            assert_relative_eq!(p.coords()[1], 0.0);
         } else {
             panic!("Expected single intersection point");
         }

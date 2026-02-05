@@ -29,7 +29,7 @@ pub trait SpatialRelation<T, const N: usize> {
     ///
     /// // Projects the point onto the circle's boundary
     /// let closest = circle.closest_point(&p);
-    /// assert_eq!(closest.coords[0], 1.0);
+    /// assert_eq!(closest.coords()[0], 1.0);
     /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N>;
 
@@ -129,8 +129,8 @@ pub trait SpatialRelation<T, const N: usize> {
 ///
 /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 5.0);
 /// let aabb = sphere.aabb();
-/// assert_eq!(aabb.min.coords[0], -5.0);
-/// assert_eq!(aabb.max.coords[0], 5.0);
+/// assert_eq!(aabb.min().coords()[0], -5.0);
+/// assert_eq!(aabb.max().coords()[0], 5.0);
 /// ```
 pub trait Bounded<T, const N: usize> {
     /// Returns the minimum Axis-Aligned Bounding Box that encloses the entity.

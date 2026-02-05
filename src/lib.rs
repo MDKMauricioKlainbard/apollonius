@@ -46,7 +46,8 @@
 
 pub mod algebra;
 pub mod primitives;
-mod utils;
+pub mod utils;
+pub mod space;
 
 pub use crate::algebra::{
     points::{EuclideanMetric, MetricSquared, Point, Point2D, Point3D},

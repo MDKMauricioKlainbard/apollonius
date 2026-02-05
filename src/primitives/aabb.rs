@@ -18,17 +18,17 @@ use num_traits::Float;
 /// let max = Point::new([2.0, 2.0]);
 /// let aabb = AABB::new(min, max);
 ///
-/// assert_eq!(aabb.min.coords[0], 0.0);
-/// assert_eq!(aabb.max.coords[1], 2.0);
+/// assert_eq!(aabb.min().coords()[0], 0.0);
+/// assert_eq!(aabb.max().coords()[1], 2.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "T: serde::Serialize", deserialize = "T: serde::Deserialize<'de>")))]
 pub struct AABB<T, const N: usize> {
     /// The component-wise minimum point (e.g., bottom-left-front).
-    pub min: Point<T, N>,
+    min: Point<T, N>,
     /// The component-wise maximum point (e.g., top-right-back).
-    pub max: Point<T, N>,
+    max: Point<T, N>,
 }
 
 impl<T, const N: usize> AABB<T, N>
@@ -58,6 +58,46 @@ where
         Self { min, max }
     }
 
+    /// Returns a reference to the minimum point.
+    #[inline]
+    pub fn min(&self) -> &Point<T, N> {
+        &self.min
+    }
+
+    /// Returns a reference to the maximum point.
+    #[inline]
+    pub fn max(&self) -> &Point<T, N> {
+        &self.max
+    }
+
+    /// Sets the minimum point.
+    #[inline]
+    pub fn set_min(&mut self, min: Point<T, N>) {
+        self.min = min;
+    }
+
+    /// Sets the maximum point.
+    #[inline]
+    pub fn set_max(&mut self, max: Point<T, N>) {
+        self.max = max;
+    }
+
+    /// Returns a mutable reference to the minimum point.
+    ///
+    /// Useful for in-place updates (e.g. `aabb.min_mut().coords_mut()[0] = x`).
+    #[inline]
+    pub fn min_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.min
+    }
+
+    /// Returns a mutable reference to the maximum point.
+    ///
+    /// Useful for in-place updates (e.g. `aabb.max_mut().coords_mut()[0] = x`).
+    #[inline]
+    pub fn max_mut(&mut self) -> &mut Point<T, N> {
+        &mut self.max
+    }
+
     /// Determines if this AABB overlaps with another AABB.
     ///
     /// This implementation uses the Hyper-rectangle Overlap theorem. Two AABBs intersect
@@ -85,8 +125,8 @@ where
             // Hyper-rectangle overlap logic:
             // Two intervals [a, b] and [c, d] overlap if a < d and c < b.
             // We use the negation for early exit.
-            if self.max.coords[i] <= other.min.coords[i]
-                || other.max.coords[i] <= self.min.coords[i]
+            if self.max().coords()[i] <= other.min().coords()[i]
+                || other.max().coords()[i] <= self.min().coords()[i]
             {
                 return false;
             }
@@ -170,7 +210,7 @@ mod tests {
         let aabb = AABB::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
         let json = serde_json::to_string(&aabb).unwrap();
         let restored: AABB<f64, 2> = serde_json::from_str(&json).unwrap();
-        assert_eq!(aabb.min, restored.min);
-        assert_eq!(aabb.max, restored.max);
+        assert_eq!(aabb.min(), restored.min());
+        assert_eq!(aabb.max(), restored.max());
     }
 }
