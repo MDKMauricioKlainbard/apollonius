@@ -6,6 +6,69 @@
 
 **Apollonius** is a lightweight, high-performance N-dimensional geometry library for Rust. It provides the mathematical and structural foundations for physics engines, collision detection systems, and spatial simulations using `const generics`.
 
+## 📐 Library architecture (Mermaid)
+
+Logical flow and relationships between modules. **Algebra** is the base; **primitives** build on it and share the **SpatialRelation** / **Bounded** / **IntersectionResult** API; **space** and **utils** support transforms and float handling.
+
+```mermaid
+flowchart TB
+    subgraph ROOT["apollonius"]
+        direction TB
+        subgraph ALGEBRA["algebra (foundation)"]
+            direction TB
+            POINTS["points.rs<br/>Point, Point2D, Point3D<br/>MetricSquared, EuclideanMetric"]
+            VECTORS["vectors.rs<br/>Vector, Vector2D, Vector3D<br/>VectorMetricSquared, EuclideanVector"]
+            MATRIX["matrix.rs<br/>Matrix (N×N)<br/>identity, +, −, ×, ×Vector, ×Point"]
+            ANGLE["angle.rs<br/>Angle<br/>radians, degrees, sin, cos, tan"]
+            POINTS --> VECTORS
+            VECTORS --> MATRIX
+        end
+
+        subgraph PRIMITIVES["primitives (shapes + API)"]
+            direction TB
+            TRAITS["mod.rs<br/>SpatialRelation (closest_point, distance, contains)<br/>Bounded (aabb)<br/>IntersectionResult enum"]
+            LINE["line.rs<br/>Line (origin + direction)"]
+            SEG["segment.rs<br/>Segment (start + end)"]
+            AABB["aabb.rs<br/>AABB (min, max)"]
+            SPHERE["hypersphere.rs<br/>Hypersphere / Circle / Sphere"]
+            PLANE["hyperplane.rs<br/>Hyperplane (origin + normal)"]
+            TRI["triangle.rs<br/>Triangle (a, b, c)"]
+            TRAITS --> LINE
+            TRAITS --> SEG
+            TRAITS --> SPHERE
+            TRAITS --> PLANE
+            TRAITS --> TRI
+            TRAITS --> AABB
+        end
+
+        subgraph SPACE["space"]
+            LINEAR["LinearMap (Rotation)"]
+            AFFINE["AffineTransform (linear + translation)"]
+            LINEAR --> AFFINE
+        end
+
+        UTILS["utils.rs<br/>FloatSign, classify_to_zero"]
+    end
+
+    ALGEBRA -->|"Point, Vector"| PRIMITIVES
+    ALGEBRA -->|"Matrix, Vector"| SPACE
+    UTILS -->|"tolerance"| PRIMITIVES
+    UTILS -->|"tolerance"| ALGEBRA
+
+    subgraph FLOW["Typical usage flow"]
+        direction LR
+        F1["1. Build geometry<br/>(Point, Vector, Line, …)"]
+        F2["2. SpatialRelation / Bounded<br/>(closest_point, aabb, …)"]
+        F3["3. Intersection methods<br/>(intersect_*, IntersectionResult)"]
+        F1 --> F2 --> F3
+    end
+```
+
+- **Algebra:** All types use `T: Float` (num_traits). Points and vectors are the coordinate types; Matrix and Angle extend the toolbox.
+- **Primitives:** Each shape implements `SpatialRelation` (and often `Bounded`). Intersections between them return `IntersectionResult<T, N>` (None, Tangent, Secant, Collinear, Single, HalfSpacePenetration).
+- **Space:** Affine transforms (rotation via Matrix, translation via Vector) for transforming points/vectors later.
+- **Utils:** `classify_to_zero` and `FloatSign` for robust float comparisons in primitives and algebra.
+
 ## ✨ Key Features
 
 * **N-Dimensional Support:** Type-safe coordinates and vectors for 2D, 3D, and higher-dimensional spaces using Rust's `const generics`.
