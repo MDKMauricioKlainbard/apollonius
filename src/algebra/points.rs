@@ -1,7 +1,7 @@
 use num_traits::Float;
 use std::ops::{Add, Mul, Sub};
 
-use crate::Vector;
+use crate::{Vector};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -348,7 +348,7 @@ mod points_tests {
 
     #[test]
     fn test_point_subtraction_to_vector() {
-        use super::super::Vector;
+        use super::Vector;
 
         let p1 = Point::new([10.0_f64, 20.0, 30.0]);
         let p2 = Point::new([15.0_f64, 25.0, 35.0]);

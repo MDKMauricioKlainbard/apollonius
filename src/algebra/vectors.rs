@@ -1,4 +1,4 @@
-use crate::Point;
+use crate::{Point};
 use num_traits::Float;
 use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 

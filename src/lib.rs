@@ -44,16 +44,18 @@
 //! * **`serde`** — Enables `Serialize` / `Deserialize` for points, vectors, and primitives.
 //!   Use with `apollonius = { version = "...", features = ["serde"] }`.
 
-pub mod points;
+pub mod algebra;
 pub mod primitives;
-pub mod vectors;
 mod utils;
 
-pub use crate::points::{EuclideanMetric, MetricSquared, Point, Point2D, Point3D};
-pub use crate::primitives::{
-    SpatialRelation, hypersphere::Circle, hypersphere::Hypersphere, hypersphere::Sphere,
-    line::Line, segment::Segment, IntersectionResult, aabb::AABB, Bounded, hyperplane::Hyperplane,
-    triangle::Triangle
+pub use crate::algebra::{
+    points::{EuclideanMetric, MetricSquared, Point, Point2D, Point3D},
+    vectors::{EuclideanVector, Vector, Vector2D, Vector3D, VectorMetricSquared},
+    matrix::Matrix
 };
-pub use crate::vectors::{EuclideanVector, Vector, Vector2D, Vector3D, VectorMetricSquared};
-pub use crate::utils::{classify_to_zero, FloatSign};
+pub use crate::primitives::{
+    Bounded, IntersectionResult, SpatialRelation, aabb::AABB, hyperplane::Hyperplane,
+    hypersphere::Circle, hypersphere::Hypersphere, hypersphere::Sphere, line::Line,
+    segment::Segment, triangle::Triangle,
+};
+pub use crate::utils::{FloatSign, classify_to_zero};
