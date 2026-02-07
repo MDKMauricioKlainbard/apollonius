@@ -157,7 +157,7 @@ mod tests {
         );
         let sum = z + a;
         assert_eq!(*sum.linear(), *a.linear());
-        assert_eq!(sum.translation().coords(), a.translation().coords());
+        assert_eq!(sum.translation().coords_ref(), a.translation().coords_ref());
     }
 
     #[test]
@@ -169,7 +169,7 @@ mod tests {
         );
         let sum = a + z;
         assert_eq!(*sum.linear(), *a.linear());
-        assert_eq!(sum.translation().coords(), a.translation().coords());
+        assert_eq!(sum.translation().coords_ref(), a.translation().coords_ref());
     }
 
     #[test]
@@ -186,7 +186,7 @@ mod tests {
         let expected_linear =
             Matrix::<f64, 2, General>::identity() + Matrix::<f64, 2, General>::identity();
         assert_eq!(*sum.linear(), expected_linear);
-        assert_eq!(sum.translation().coords(), &[1.0, 2.0]);
+        assert_eq!(sum.translation().coords_ref(), &[1.0, 2.0]);
     }
 
     #[test]
@@ -199,10 +199,10 @@ mod tests {
             Matrix::<f64, 2, General>::new([[0.0, 1.0], [1.0, 0.0]]),
             Vector::new([3.0, 4.0]),
         );
-        assert_eq!((a + b).linear().data(), (b + a).linear().data());
+        assert_eq!((a + b).linear().data_ref(), (b + a).linear().data_ref());
         assert_eq!(
-            (a + b).translation().coords(),
-            (b + a).translation().coords()
+            (a + b).translation().coords_ref(),
+            (b + a).translation().coords_ref()
         );
     }
 
@@ -222,8 +222,8 @@ mod tests {
         );
         let ab_c = (a + b) + c;
         let a_bc = a + (b + c);
-        assert_eq!(ab_c.linear().data(), a_bc.linear().data());
-        assert_eq!(ab_c.translation().coords(), a_bc.translation().coords());
+        assert_eq!(ab_c.linear().data_ref(), a_bc.linear().data_ref());
+        assert_eq!(ab_c.translation().coords_ref(), a_bc.translation().coords_ref());
     }
 
     // --- Subtraction -------------------------------------------------------------------------
@@ -239,7 +239,7 @@ mod tests {
             *diff.linear(),
             Matrix::<f64, 2, General>::new([[0.0, 0.0], [0.0, 0.0]])
         );
-        assert_eq!(diff.translation().coords(), &[0.0, 0.0]);
+        assert_eq!(diff.translation().coords_ref(), &[0.0, 0.0]);
     }
 
     #[test]
@@ -254,8 +254,8 @@ mod tests {
         );
         let sum = a + b;
         let diff = sum - b;
-        assert_eq!(diff.linear().data(), a.linear().data());
-        assert_eq!(diff.translation().coords(), a.translation().coords());
+        assert_eq!(diff.linear().data_ref(), a.linear().data_ref());
+        assert_eq!(diff.translation().coords_ref(), a.translation().coords_ref());
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
             *diff.linear(),
             Matrix::<f64, 2, General>::new([[0.0, 0.0], [0.0, 0.0]])
         );
-        assert_eq!(diff.translation().coords(), &[2.0, 2.0]);
+        assert_eq!(diff.translation().coords_ref(), &[2.0, 2.0]);
     }
 
     // --- Multiplication: identity ------------------------------------------------------------
@@ -285,8 +285,8 @@ mod tests {
         let t = Vector::new([1.0, 2.0]);
         let a = AffineTransform::new(r, t);
         let product = id * a;
-        assert_eq!(product.linear().data(), a.linear().data());
-        assert_eq!(product.translation().coords(), a.translation().coords());
+        assert_eq!(product.linear().data_ref(), a.linear().data_ref());
+        assert_eq!(product.translation().coords_ref(), a.translation().coords_ref());
     }
 
     #[test]
@@ -296,8 +296,8 @@ mod tests {
         let t = Vector::new([3.0, -1.0]);
         let a = AffineTransform::new(r, t);
         let product = a * id;
-        assert_eq!(product.linear().data(), a.linear().data());
-        assert_eq!(product.translation().coords(), a.translation().coords());
+        assert_eq!(product.linear().data_ref(), a.linear().data_ref());
+        assert_eq!(product.translation().coords_ref(), a.translation().coords_ref());
     }
 
     // --- Multiplication: two translations (identity linear) ----------------------------------
@@ -314,7 +314,7 @@ mod tests {
         );
         let product = t1 * t2;
         assert_eq!(*product.linear(), Matrix::<f64, 2, General>::identity());
-        assert_eq!(product.translation().coords(), &[1.0, 2.0]);
+        assert_eq!(product.translation().coords_ref(), &[1.0, 2.0]);
     }
 
     // --- Multiplication: (L, t_a) * (I, t_b) => linear L, translation L*t_b + t_a -------------
@@ -329,8 +329,8 @@ mod tests {
         let product = a * b;
         let expected_translation = r * t_b + t_a;
         assert_eq!(
-            product.translation().coords(),
-            expected_translation.coords()
+            product.translation().coords_ref(),
+            expected_translation.coords_ref()
         );
     }
 
@@ -348,7 +348,7 @@ mod tests {
         let ab = a * b;
         let applied_twice = a * (b * p);
         let applied_product = ab * p;
-        assert_eq!(applied_product.coords(), applied_twice.coords());
+        assert_eq!(applied_product.coords_ref(), applied_twice.coords_ref());
     }
 
     // --- Associativity of multiplication -----------------------------------------------------
@@ -364,7 +364,7 @@ mod tests {
         let c = AffineTransform::new(r, Vector::new([0.0, 0.0]));
         let ab_c = (a * b) * c;
         let a_bc = a * (b * c);
-        assert_eq!(ab_c.linear().data(), a_bc.linear().data());
-        assert_eq!(ab_c.translation().coords(), a_bc.translation().coords());
+        assert_eq!(ab_c.linear().data_ref(), a_bc.linear().data_ref());
+        assert_eq!(ab_c.translation().coords_ref(), a_bc.translation().coords_ref());
     }
 }

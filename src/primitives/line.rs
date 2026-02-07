@@ -18,7 +18,7 @@ use num_traits::Float;
 /// let direction = Vector::new([1.0, 0.0, 0.0]);
 /// let line = Line::new(origin, direction);
 ///
-/// assert_eq!(line.at(10.0).coords()[0], 10.0);
+/// assert_eq!(line.at(10.0).coords_ref()[0], 10.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -51,7 +51,7 @@ where
     ///
     /// let line = Line::new(Point::new([0.0, 0.0]), Vector::new([5.0, 0.0]));
     /// // The direction is normalized to unit length
-    /// assert_eq!(line.at(1.0).coords()[0], 1.0);
+    /// assert_eq!(line.at(1.0).coords_ref()[0], 1.0);
     /// ```
     pub fn new(origin: Point<T, N>, direction: Vector<T, N>) -> Self {
         let direction = direction.normalize().unwrap_or(direction);
@@ -66,9 +66,33 @@ where
         self.origin + self.direction * t
     }
 
+    /// Returns the origin point on the line.
+    #[inline]
+    pub fn origin(&self) -> Point<T, N> {
+        self.origin
+    }
+
+    /// Returns a reference to the origin point.
+    #[inline]
+    pub fn origin_ref(&self) -> &Point<T, N> {
+        &self.origin
+    }
+
+    /// Returns the normalized direction vector of the line.
+    #[inline]
+    pub fn direction(&self) -> Vector<T, N> {
+        self.direction
+    }
+
+    /// Returns a reference to the direction vector.
+    #[inline]
+    pub fn direction_ref(&self) -> &Vector<T, N> {
+        &self.direction
+    }
+
     /// Returns a mutable reference to the origin point.
     #[inline]
-    pub fn origin_mut(&mut self) -> &mut Point<T, N> {
+    pub fn origin_ref_mut(&mut self) -> &mut Point<T, N> {
         &mut self.origin
     }
 
@@ -76,7 +100,7 @@ where
     ///
     /// Note: mutating the direction does not re-normalize it.
     #[inline]
-    pub fn direction_mut(&mut self) -> &mut Vector<T, N> {
+    pub fn direction_ref_mut(&mut self) -> &mut Vector<T, N> {
         &mut self.direction
     }
 
@@ -98,8 +122,8 @@ where
     ///
     /// let result = line.intersect_hypersphere(&sphere);
     /// if let IntersectionResult::Secant(p1, p2) = result {
-    ///     assert_eq!(p1.coords()[0], -2.0);
-    ///     assert_eq!(p2.coords()[0], 2.0);
+    ///     assert_eq!(p1.coords_ref()[0], -2.0);
+    ///     assert_eq!(p2.coords_ref()[0], 2.0);
     /// }
     /// ```
     pub fn intersect_hypersphere(&self, sphere: &Hypersphere<T, N>) -> IntersectionResult<T, N> {
@@ -226,8 +250,8 @@ where
     ///
     /// // Lines intersect at (0, 0, 0)
     /// if let IntersectionResult::Single(p) = line1.intersect_line(&line2) {
-    ///     assert_eq!(p.coords()[0], 0.0);
-    ///     assert_eq!(p.coords()[1], 0.0);
+    ///     assert_eq!(p.coords_ref()[0], 0.0);
+    ///     assert_eq!(p.coords_ref()[1], 0.0);
     /// }
     /// ```
     pub fn intersect_line(&self, other: &Line<T, N>) -> IntersectionResult<T, N> {
@@ -295,8 +319,8 @@ where
     /// let segment = Segment::new(Point::new([5.0, -1.0]), Point::new([5.0, 1.0]));
     ///
     /// if let IntersectionResult::Single(p) = line.intersect_segment(&segment) {
-    ///     assert_eq!(p.coords()[0], 5.0);
-    ///     assert_eq!(p.coords()[1], 0.0);
+    ///     assert_eq!(p.coords_ref()[0], 5.0);
+    ///     assert_eq!(p.coords_ref()[1], 0.0);
     /// }
     /// ```
     pub fn intersect_segment(&self, segment: &Segment<T, N>) -> IntersectionResult<T, N> {
@@ -363,8 +387,8 @@ where
     /// let p = Point::new([5.0, 10.0]);
     /// let closest = line.closest_point(&p);
     ///
-    /// assert_eq!(closest.coords()[0], 5.0);
-/// assert_eq!(closest.coords()[1], 0.0);
+    /// assert_eq!(closest.coords_ref()[0], 5.0);
+    /// assert_eq!(closest.coords_ref()[1], 0.0);
     /// ```
     #[inline]
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
@@ -395,9 +419,9 @@ mod test {
         let line = Line::new(origin, direction);
 
         // L(t) = origin + t * direction
-        assert_relative_eq!(line.at(0.0).coords()[0], 0.0);
-        assert_relative_eq!(line.at(1.0).coords()[0], 1.0);
-        assert_relative_eq!(line.at(-1.0).coords()[0], -1.0);
+        assert_relative_eq!(line.at(0.0).coords_ref()[0], 0.0);
+        assert_relative_eq!(line.at(1.0).coords_ref()[0], 1.0);
+        assert_relative_eq!(line.at(-1.0).coords_ref()[0], -1.0);
     }
 
     #[test]
@@ -407,8 +431,8 @@ mod test {
         let p = Point::new([5.0, 10.0]);
 
         let closest = line.closest_point(&p);
-        assert_relative_eq!(closest.coords()[0], 5.0);
-        assert_relative_eq!(closest.coords()[1], 0.0);
+        assert_relative_eq!(closest.coords_ref()[0], 5.0);
+        assert_relative_eq!(closest.coords_ref()[1], 0.0);
     }
 
     #[test]
@@ -483,8 +507,8 @@ mod test {
         let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 10.0);
 
         if let IntersectionResult::Tangent(p) = line.intersect_hypersphere(&sphere) {
-            assert_relative_eq!(p.coords()[0], 0.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords()[1], 10.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[1], 10.0, epsilon = 1e-6);
         } else {
             panic!("Expected tangent intersection at (0, 10)");
         }
@@ -498,10 +522,10 @@ mod test {
 
         if let IntersectionResult::Secant(p1, p2) = line.intersect_hypersphere(&sphere) {
             // We expect (-10, 0) and (10, 0)
-            let (min_x, max_x) = if p1.coords()[0] < p2.coords()[0] {
-                (p1.coords()[0], p2.coords()[0])
+            let (min_x, max_x) = if p1.coords_ref()[0] < p2.coords_ref()[0] {
+                (p1.coords_ref()[0], p2.coords_ref()[0])
             } else {
-                (p2.coords()[0], p1.coords()[0])
+                (p2.coords_ref()[0], p1.coords_ref()[0])
             };
             assert_relative_eq!(min_x, -10.0, epsilon = 1e-6);
             assert_relative_eq!(max_x, 10.0, epsilon = 1e-6);
@@ -518,10 +542,10 @@ mod test {
         let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 5.0);
 
         if let IntersectionResult::Secant(p1, p2) = line.intersect_hypersphere(&sphere) {
-            let (min_y, max_y) = if p1.coords()[1] < p2.coords()[1] {
-                (p1.coords()[1], p2.coords()[1])
+            let (min_y, max_y) = if p1.coords_ref()[1] < p2.coords_ref()[1] {
+                (p1.coords_ref()[1], p2.coords_ref()[1])
             } else {
-                (p2.coords()[1], p1.coords()[1])
+                (p2.coords_ref()[1], p1.coords_ref()[1])
             };
             assert_relative_eq!(min_y, -4.0, epsilon = 1e-6);
             assert_relative_eq!(max_y, 4.0, epsilon = 1e-6);
@@ -545,9 +569,9 @@ mod test {
         // Expect intersection at the origin (0, 0, 0)
         match line.intersect_hyperplane(&plane) {
             IntersectionResult::Single(p) => {
-                assert!((p.coords()[0] - 0.0).abs() < 1e-6);
-                assert!((p.coords()[1] - 0.0).abs() < 1e-6);
-                assert!((p.coords()[2] - 0.0).abs() < 1e-6);
+                assert!((p.coords_ref()[0] - 0.0).abs() < 1e-6);
+                assert!((p.coords_ref()[1] - 0.0).abs() < 1e-6);
+                assert!((p.coords_ref()[2] - 0.0).abs() < 1e-6);
             }
             _ => panic!("Expected a single intersection point"),
         }
@@ -590,9 +614,9 @@ mod test {
         let line = Line::new(Point::new([1.0, 1.0, 1.0]), Vector::new([0.0, 0.0, -1.0]));
 
         if let IntersectionResult::Single(p) = line.intersect_hyperplane(&plane) {
-            assert!((p.coords()[0] - 1.0).abs() < 1e-6);
-            assert!((p.coords()[1] - 1.0).abs() < 1e-6);
-            assert!((p.coords()[2] - 0.0).abs() < 1e-6);
+            assert!((p.coords_ref()[0] - 1.0).abs() < 1e-6);
+            assert!((p.coords_ref()[1] - 1.0).abs() < 1e-6);
+            assert!((p.coords_ref()[2] - 0.0).abs() < 1e-6);
         } else {
             panic!("Expected single oblique intersection");
         }
@@ -608,9 +632,9 @@ mod test {
         // They should intersect exactly at the origin
         match line1.intersect_line(&line2) {
             IntersectionResult::Single(p) => {
-                assert!((p.coords()[0] - 0.0).abs() < 1e-6);
-                assert!((p.coords()[1] - 0.0).abs() < 1e-6);
-                assert!((p.coords()[2] - 0.0).abs() < 1e-6);
+                assert!((p.coords_ref()[0] - 0.0).abs() < 1e-6);
+                assert!((p.coords_ref()[1] - 0.0).abs() < 1e-6);
+                assert!((p.coords_ref()[2] - 0.0).abs() < 1e-6);
             }
             _ => panic!("Expected a single intersection point at the origin"),
         }
@@ -656,9 +680,9 @@ mod test {
 
         // Intersection should be at (1, 1, 0)
         if let IntersectionResult::Single(p) = line1.intersect_line(&line2) {
-            assert!((p.coords()[0] - 1.0).abs() < 1e-6);
-            assert!((p.coords()[1] - 1.0).abs() < 1e-6);
-            assert!((p.coords()[2] - 0.0).abs() < 1e-6);
+            assert!((p.coords_ref()[0] - 1.0).abs() < 1e-6);
+            assert!((p.coords_ref()[1] - 1.0).abs() < 1e-6);
+            assert!((p.coords_ref()[2] - 0.0).abs() < 1e-6);
         } else {
             panic!("Expected single intersection point at (1, 1, 0)");
         }
@@ -673,8 +697,8 @@ mod test {
         let segment = Segment::new(Point::new([5.0, -1.0]), Point::new([5.0, 1.0]));
 
         if let IntersectionResult::Single(p) = line.intersect_segment(&segment) {
-            assert_relative_eq!(p.coords()[0], 5.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords()[1], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[0], 5.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[1], 0.0, epsilon = 1e-6);
         } else {
             panic!("Expected single intersection at (5, 0)");
         }
@@ -727,8 +751,8 @@ mod test {
         let segment = Segment::new(Point::new([0.0, 0.0]), Point::new([2.0, 0.0]));
 
         if let IntersectionResult::Single(p) = line.intersect_segment(&segment) {
-            assert_relative_eq!(p.coords()[0], 0.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords()[1], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[1], 0.0, epsilon = 1e-6);
         } else {
             panic!("Expected single intersection at segment start (0, 0)");
         }
@@ -741,8 +765,8 @@ mod test {
         let segment = Segment::new(Point::new([2.0, 0.0]), Point::new([2.0, 4.0]));
 
         if let IntersectionResult::Single(p) = line.intersect_segment(&segment) {
-            assert_relative_eq!(p.coords()[0], 2.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords()[1], 2.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[0], 2.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[1], 2.0, epsilon = 1e-6);
         } else {
             panic!("Expected single intersection at (2, 2)");
         }
@@ -756,9 +780,9 @@ mod test {
         let line = Line::new(Point::new([0.0, 0.0]), Vector::new([1.0, 0.0]));
         let json = serde_json::to_string(&line).unwrap();
         let restored: Line<f64, 2> = serde_json::from_str(&json).unwrap();
-        assert_relative_eq!(line.at(0.0).coords()[0], restored.at(0.0).coords()[0]);
-        assert_relative_eq!(line.at(0.0).coords()[1], restored.at(0.0).coords()[1]);
-        assert_relative_eq!(line.at(1.0).coords()[0], restored.at(1.0).coords()[0]);
-        assert_relative_eq!(line.at(1.0).coords()[1], restored.at(1.0).coords()[1]);
+        assert_relative_eq!(line.at(0.0).coords_ref()[0], restored.at(0.0).coords_ref()[0]);
+        assert_relative_eq!(line.at(0.0).coords_ref()[1], restored.at(0.0).coords_ref()[1]);
+        assert_relative_eq!(line.at(1.0).coords_ref()[0], restored.at(1.0).coords_ref()[0]);
+        assert_relative_eq!(line.at(1.0).coords_ref()[1], restored.at(1.0).coords_ref()[1]);
     }
 }

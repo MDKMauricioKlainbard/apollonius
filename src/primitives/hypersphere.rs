@@ -57,8 +57,8 @@ where
     /// let sphere = Hypersphere::new(Point::new([0.0, 0.0, 0.0]), 5.0);
     /// let aabb = sphere.aabb();
     ///
-    /// assert_eq!(aabb.min().coords()[0], -5.0);
-    /// assert_eq!(aabb.max().coords()[0], 5.0);
+    /// assert_eq!(aabb.min_ref().coords_ref()[0], -5.0);
+    /// assert_eq!(aabb.max_ref().coords_ref()[0], 5.0);
     /// ```
     #[inline]
     pub fn new(center: Point<T, N>, radius: T) -> Self {
@@ -71,10 +71,22 @@ where
         self.center
     }
 
+    /// Returns a reference to the center point.
+    #[inline]
+    pub fn center_ref(&self) -> &Point<T, N> {
+        &self.center
+    }
+
     /// Returns the current radius.
     #[inline]
     pub fn radius(&self) -> T {
         self.radius
+    }
+
+    /// Returns a reference to the radius.
+    #[inline]
+    pub fn radius_ref(&self) -> &T {
+        &self.radius
     }
 
     /// Updates the center.
@@ -89,13 +101,13 @@ where
 
     /// Returns a mutable reference to the center point.
     #[inline]
-    pub fn center_mut(&mut self) -> &mut Point<T, N> {
+    pub fn center_ref_mut(&mut self) -> &mut Point<T, N> {
         &mut self.center
     }
 
     /// Returns a mutable reference to the radius.
     #[inline]
-    pub fn radius_mut(&mut self) -> &mut T {
+    pub fn radius_ref_mut(&mut self) -> &mut T {
         &mut self.radius
     }
 }
@@ -111,8 +123,8 @@ where
         let (center, radius) = (self.center, self.radius);
 
         for i in 0..N {
-            min_coords[i] = center.coords()[i] - radius;
-            max_coords[i] = center.coords()[i] + radius;
+            min_coords[i] = center.coords_ref()[i] - radius;
+            max_coords[i] = center.coords_ref()[i] + radius;
         }
 
         AABB::new(Point::new(min_coords), Point::new(max_coords))
@@ -138,8 +150,8 @@ where
     /// let p = Point::new([4.0, 0.0]);
     ///
     /// let closest = circle.closest_point(&p);
-    /// assert_eq!(closest.coords()[0], 2.0);
-    /// assert_eq!(closest.coords()[1], 0.0);
+    /// assert_eq!(closest.coords_ref()[0], 2.0);
+    /// assert_eq!(closest.coords_ref()[1], 0.0);
     /// ```
     fn closest_point(&self, p: &Point<T, N>) -> Point<T, N> {
         let direction = (*p - self.center).normalize().unwrap_or_else(|| {
@@ -217,8 +229,8 @@ where
     /// let line = Line::new(Point::new([-5.0, 0.0]), Vector::new([1.0, 0.0]));
     /// let sphere = Hypersphere::new(Point::new([0.0, 0.0]), 2.0);
     /// if let IntersectionResult::Secant(p1, p2) = sphere.intersect_line(&line) {
-    ///     assert_eq!(p1.coords()[0], -2.0);
-    ///     assert_eq!(p2.coords()[0], 2.0);
+    ///     assert_eq!(p1.coords_ref()[0], -2.0);
+    ///     assert_eq!(p2.coords_ref()[0], 2.0);
     /// }
     /// ```
     #[inline]
@@ -247,8 +259,8 @@ where
     ///
     /// let result = circle.intersect_segment(&seg);
     /// if let IntersectionResult::Secant(p1, p2) = result {
-    ///     assert_eq!(p1.coords()[0], -1.0);
-    ///     assert_eq!(p2.coords()[0], 1.0);
+    ///     assert_eq!(p1.coords_ref()[0], -1.0);
+    ///     assert_eq!(p2.coords_ref()[0], 1.0);
     /// }
     /// ```
     #[inline]
@@ -297,9 +309,9 @@ where
     ///
     /// match sphere.intersect_hyperplane(&plane) {
     ///     IntersectionResult::Tangent(p) => {
-    ///         assert_eq!(p.coords()[0], 0.0);
-    ///         assert_eq!(p.coords()[1], 0.0);
-    ///         assert_eq!(p.coords()[2], 0.0);
+    ///         assert_eq!(p.coords_ref()[0], 0.0);
+    ///         assert_eq!(p.coords_ref()[1], 0.0);
+    ///         assert_eq!(p.coords_ref()[2], 0.0);
     ///     }
     ///     _ => panic!("expected Tangent for tangent sphere-plane contact"),
     /// }
@@ -532,8 +544,8 @@ mod tests {
         let p = Point::new([10.0, 0.0]);
         let projected = circle.closest_point(&p);
 
-        assert_relative_eq!(projected.coords()[0], 5.0, epsilon = 1e-6);
-        assert_relative_eq!(projected.coords()[1], 0.0, epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[0], 5.0, epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[1], 0.0, epsilon = 1e-6);
     }
 
     #[test]
@@ -542,8 +554,8 @@ mod tests {
         let p = Point::new([0.0, 2.0]);
         let projected = circle.closest_point(&p);
 
-        assert_relative_eq!(projected.coords()[0], 0.0, epsilon = 1e-6);
-        assert_relative_eq!(projected.coords()[1], 5.0, epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[0], 0.0, epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[1], 5.0, epsilon = 1e-6);
     }
 
     #[test]
@@ -552,8 +564,8 @@ mod tests {
         let p = Point::new([15.0, 10.0]);
         let projected = circle.closest_point(&p);
 
-        assert_relative_eq!(projected.coords()[0], p.coords()[0], epsilon = 1e-6);
-        assert_relative_eq!(projected.coords()[1], p.coords()[1], epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[0], p.coords_ref()[0], epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[1], p.coords_ref()[1], epsilon = 1e-6);
     }
 
     #[test]
@@ -562,8 +574,8 @@ mod tests {
         let projected = circle.closest_point(&circle.center);
 
         // Fallback should project towards positive X-axis
-        assert_relative_eq!(projected.coords()[0], 10.0, epsilon = 1e-6);
-        assert_relative_eq!(projected.coords()[1], 0.0, epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[0], 10.0, epsilon = 1e-6);
+        assert_relative_eq!(projected.coords_ref()[1], 0.0, epsilon = 1e-6);
     }
 
     #[test]
@@ -576,10 +588,10 @@ mod tests {
         if let IntersectionResult::Secant(p1, p2) = sphere.intersect_line(&line) {
             // Points should be at distance 5 from origin: 5 * cos(45) = 3.5355...
             let expected = 5.0 / 2.0f64.sqrt();
-            assert_relative_eq!(p1.coords()[0].abs(), expected, epsilon = 1e-6);
-            assert_relative_eq!(p1.coords()[1].abs(), expected, epsilon = 1e-6);
-            assert_relative_eq!(p2.coords()[0].abs(), expected, epsilon = 1e-6);
-            assert_relative_eq!(p2.coords()[1].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p1.coords_ref()[0].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p1.coords_ref()[1].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p2.coords_ref()[0].abs(), expected, epsilon = 1e-6);
+            assert_relative_eq!(p2.coords_ref()[1].abs(), expected, epsilon = 1e-6);
         } else {
             panic!("Expected diagonal secant intersection");
         }
@@ -591,8 +603,8 @@ mod tests {
         let line = Line::new(Point::new([-10.0, 5.0]), Vector::new([1.0, 0.0]));
 
         if let IntersectionResult::Tangent(p) = sphere.intersect_line(&line) {
-            assert_relative_eq!(p.coords()[0], 0.0, epsilon = 1e-6);
-            assert_relative_eq!(p.coords()[1], 5.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[0], 0.0, epsilon = 1e-6);
+            assert_relative_eq!(p.coords_ref()[1], 5.0, epsilon = 1e-6);
         } else {
             panic!("Expected tangent at (0, 5)");
         }
@@ -604,11 +616,11 @@ mod tests {
         let aabb = circle.aabb();
 
         // Min: 10-5, 20-5 -> (5, 15)
-        assert_relative_eq!(aabb.min().coords()[0], 5.0);
-        assert_relative_eq!(aabb.min().coords()[1], 15.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[0], 5.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[1], 15.0);
         // Max: 10+5, 20+5 -> (15, 25)
-        assert_relative_eq!(aabb.max().coords()[0], 15.0);
-        assert_relative_eq!(aabb.max().coords()[1], 25.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[0], 15.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[1], 25.0);
     }
 
     #[test]
@@ -618,11 +630,11 @@ mod tests {
 
         let aabb = sphere.aabb();
         // New Center 100, Radius 10 -> Min X: 90, Max X: 110
-        assert_relative_eq!(aabb.min().coords()[0], 90.0);
-        assert_relative_eq!(aabb.max().coords()[0], 110.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[0], 90.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[0], 110.0);
         // Y and Z should remain centered around 0 -> Min: -10, Max: 10
-        assert_relative_eq!(aabb.min().coords()[1], -10.0);
-        assert_relative_eq!(aabb.max().coords()[2], 10.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[1], -10.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[2], 10.0);
     }
 
     #[test]
@@ -633,11 +645,11 @@ mod tests {
 
         let aabb = circle.aabb();
         // Min should be 0 - 15 = -15
-        assert_relative_eq!(aabb.min().coords()[0], -15.0);
-        assert_relative_eq!(aabb.min().coords()[1], -15.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[0], -15.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[1], -15.0);
         // Max should be 0 + 15 = 15
-        assert_relative_eq!(aabb.max().coords()[0], 15.0);
-        assert_relative_eq!(aabb.max().coords()[1], 15.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[0], 15.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[1], 15.0);
     }
 
     #[test]
@@ -648,8 +660,8 @@ mod tests {
 
         let aabb = circle.aabb();
         // Center 10, Radius 2 -> Min: 8, Max: 12
-        assert_relative_eq!(aabb.min().coords()[0], 8.0);
-        assert_relative_eq!(aabb.max().coords()[1], 12.0);
+        assert_relative_eq!(aabb.min_ref().coords_ref()[0], 8.0);
+        assert_relative_eq!(aabb.max_ref().coords_ref()[1], 12.0);
     }
 
     #[test]

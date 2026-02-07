@@ -123,7 +123,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// use apollonius::algebra::matrix::{Matrix, General};
 ///
 /// let m = Matrix::<_, 2, General>::new([[1.0, 0.0], [0.0, 1.0]]);
-/// assert_eq!(m.data(), &[[1.0, 0.0], [0.0, 1.0]]);
+/// assert_eq!(m.data_ref(), &[[1.0, 0.0], [0.0, 1.0]]);
 /// ```
 ///
 /// Matrix-vector product (works for any tag):
@@ -135,7 +135,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
 /// let v = Vector::new([1.0, 0.0]);
 /// let out = m * v;
-/// assert_eq!(out.coords(), &[1.0, 3.0]);
+/// assert_eq!(out.coords_ref(), &[1.0, 3.0]);
 /// ```
 ///
 /// Identity matrix (available for any tag):
@@ -228,9 +228,19 @@ where
     T: Float,
     Tag: MatrixTag,
 {
+    /// Returns a copy of the inner row-major data array (field name = by value).
+    /// Requires `T: Copy` (e.g. `f32`, `f64`).
+    #[inline]
+    pub fn data(&self) -> [[T; N]; N]
+    where
+        T: Copy,
+    {
+        self.data
+    }
+
     /// Returns a reference to the inner row-major data array.
     #[inline]
-    pub fn data(&self) -> &[[T; N]; N] {
+    pub fn data_ref(&self) -> &[[T; N]; N] {
         &self.data
     }
 
@@ -243,9 +253,9 @@ where
     /// use apollonius::algebra::matrix::{Matrix, General};
     ///
     /// let i = Matrix::<f64, 3, General>::identity();
-    /// assert_eq!(i.data()[0], [1.0, 0.0, 0.0]);
-    /// assert_eq!(i.data()[1], [0.0, 1.0, 0.0]);
-    /// assert_eq!(i.data()[2], [0.0, 0.0, 1.0]);
+    /// assert_eq!(i.data_ref()[0], [1.0, 0.0, 0.0]);
+    /// assert_eq!(i.data_ref()[1], [0.0, 1.0, 0.0]);
+    /// assert_eq!(i.data_ref()[2], [0.0, 0.0, 1.0]);
     /// ```
     pub fn identity() -> Self {
         let data = std::array::from_fn(|i| {
@@ -271,8 +281,8 @@ where
     /// use apollonius::algebra::matrix::{Matrix, General};
     ///
     /// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
-    /// assert_eq!(m.data()[0], [1.0, 2.0]);
-    /// assert_eq!(m.data()[1], [3.0, 4.0]);
+    /// assert_eq!(m.data_ref()[0], [1.0, 2.0]);
+    /// assert_eq!(m.data_ref()[1], [3.0, 4.0]);
     /// ```
     #[inline]
     pub fn new(data: [[T; N]; N]) -> Self {
@@ -291,7 +301,7 @@ where
     ///
     /// let mut m = Matrix::<_, 2, General>::new([[0.0, 0.0], [0.0, 0.0]]);
     /// m.set_data([[1.0, 0.0], [0.0, 1.0]]);
-    /// assert_eq!(m.data(), &[[1.0, 0.0], [0.0, 1.0]]);
+    /// assert_eq!(m.data_ref(), &[[1.0, 0.0], [0.0, 1.0]]);
     /// ```
     #[inline]
     pub fn set_data(&mut self, data: [[T; N]; N]) {
@@ -313,7 +323,7 @@ where
     /// let mut m = Matrix::<f64, 2, General>::identity();
     /// m.set_component(0, 1, 5.0);
     /// m.set_component(1, 0, -3.0);
-    /// assert_eq!(m.data(), &[[1.0, 5.0], [-3.0, 1.0]]);
+    /// assert_eq!(m.data_ref(), &[[1.0, 5.0], [-3.0, 1.0]]);
     /// ```
     pub fn set_component(&mut self, row: usize, column: usize, value: T) {
         assert!(
@@ -328,7 +338,7 @@ where
 
     /// Returns a mutable reference to the inner row-major data array. Only available for [`General`] matrices.
     #[inline]
-    pub fn data_mut(&mut self) -> &mut [[T; N]; N] {
+    pub fn data_ref_mut(&mut self) -> &mut [[T; N]; N] {
         &mut self.data
     }
 }
@@ -361,9 +371,9 @@ where
     /// let m = Matrix::<f64, 3, Isometry>::rotation(angle, 0, 1);
     /// let v = Vector::new([1.0, 0.0, 0.0]);
     /// let rotated = m * v;
-    /// assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-    /// assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
-    /// assert_eq!(rotated.coords()[2], 0.0);
+    /// assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+    /// assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
+    /// assert_eq!(rotated.coords_ref()[2], 0.0);
     /// ```
     pub fn rotation(angle: Angle<T>, axis_i: usize, axis_j: usize) -> Self {
         assert!(
@@ -412,8 +422,8 @@ where
     /// let m = Matrix::<f64, 2, Isometry>::rotation_2d(angle);
     /// let v = Vector::new([1.0, 0.0]);
     /// let rotated = m * v;
-    /// assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-    /// assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
+    /// assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+    /// assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
     /// ```
     pub fn rotation_2d(angle: Angle<T>) -> Self {
         Self::rotation(angle, 0, 1)
@@ -444,9 +454,9 @@ where
     /// let m = Matrix::<f64, 3, Isometry>::rotation_3d(angle, 2);
     /// let v = Vector::new([1.0, 0.0, 0.0]);
     /// let rotated = m * v;
-    /// assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-    /// assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
-    /// assert_eq!(rotated.coords()[2], 0.0);
+    /// assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+    /// assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
+    /// assert_eq!(rotated.coords_ref()[2], 0.0);
     /// ```
     pub fn rotation_3d(angle: Angle<T>, axis: usize) -> Self {
         match axis {
@@ -472,7 +482,7 @@ where
 /// let a = Matrix::<_, 2, General>::new([[1.0, 0.0], [0.0, 1.0]]);
 /// let b = Matrix::<_, 2, General>::new([[0.0, 1.0], [1.0, 0.0]]);
 /// let sum = a + b;
-/// assert_eq!(sum.data(), &[[1.0, 1.0], [1.0, 1.0]]);
+/// assert_eq!(sum.data_ref(), &[[1.0, 1.0], [1.0, 1.0]]);
 /// ```
 impl<T, const N: usize, TagL, TagR> Add<Matrix<T, N, TagR>> for Matrix<T, N, TagL>
 where
@@ -500,7 +510,7 @@ where
 ///
 /// let a = Matrix::<_, 2, General>::new([[2.0, 1.0], [1.0, 2.0]]);
 /// let b = Matrix::<_, 2, General>::new([[1.0, 0.0], [0.0, 1.0]]);
-/// assert_eq!((a - b).data(), &[[1.0, 1.0], [1.0, 1.0]]);
+/// assert_eq!((a - b).data_ref(), &[[1.0, 1.0], [1.0, 1.0]]);
 /// ```
 impl<T, const N: usize, TagL, TagR> Sub<Matrix<T, N, TagR>> for Matrix<T, N, TagL>
 where
@@ -530,7 +540,7 @@ where
 /// let a = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
 /// let b = Matrix::<f64, 2, General>::new([[5.0, 6.0], [7.0, 8.0]]);
 /// let ab = a * b;
-/// assert_eq!(ab.data(), &[[19.0, 22.0], [43.0, 50.0]]);
+/// assert_eq!(ab.data_ref(), &[[19.0, 22.0], [43.0, 50.0]]);
 /// ```
 impl<T, const N: usize, LTag, RTag> Mul<Matrix<T, N, RTag>> for Matrix<T, N, LTag>
 where
@@ -602,7 +612,7 @@ mod tests {
     fn identity_4x4() {
         let i = Matrix::<f64, 4, General>::identity();
         assert_eq!(
-            i.data(),
+            i.data_ref(),
             &[
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
@@ -713,8 +723,8 @@ mod tests {
         let m = Matrix::<f64, 2, Isometry>::rotation_2d(angle);
         let v = Vector::new([1.0, 0.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
     }
 
     #[test]
@@ -723,8 +733,8 @@ mod tests {
         let m = Matrix::<f64, 2, Isometry>::rotation_2d(angle);
         let v = Vector::new([0.0, 1.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - (-1.0)).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - (-1.0)).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -732,7 +742,7 @@ mod tests {
         let angle = Angle::<f64>::from_radians(0.7);
         let m = Matrix::<f64, 2, Isometry>::rotation_2d(angle);
         let mt_m = {
-            let d = m.data();
+            let d = m.data_ref();
             Matrix::<f64, 2, General>::new([
                 [
                     d[0][0] * d[0][0] + d[1][0] * d[1][0],
@@ -745,10 +755,10 @@ mod tests {
             ])
         };
         let i = Matrix::<f64, 2, General>::identity();
-        assert!((mt_m.data()[0][0] - i.data()[0][0]).abs() < 1e-9);
-        assert!((mt_m.data()[0][1] - i.data()[0][1]).abs() < 1e-9);
-        assert!((mt_m.data()[1][0] - i.data()[1][0]).abs() < 1e-9);
-        assert!((mt_m.data()[1][1] - i.data()[1][1]).abs() < 1e-9);
+        assert!((mt_m.data_ref()[0][0] - i.data_ref()[0][0]).abs() < 1e-9);
+        assert!((mt_m.data_ref()[0][1] - i.data_ref()[0][1]).abs() < 1e-9);
+        assert!((mt_m.data_ref()[1][0] - i.data_ref()[1][0]).abs() < 1e-9);
+        assert!((mt_m.data_ref()[1][1] - i.data_ref()[1][1]).abs() < 1e-9);
     }
 
     // --- Rotation 3D (angle + axis 0/1/2; returns Isometry) ----------------------------------
@@ -774,9 +784,9 @@ mod tests {
         let m = Matrix::<f64, 3, Isometry>::rotation_3d(angle, 2);
         let v = Vector::new([1.0, 0.0, 0.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
-        assert!((rotated.coords()[2] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[2] - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -785,9 +795,9 @@ mod tests {
         let m = Matrix::<f64, 3, Isometry>::rotation_3d(angle, 0);
         let v = Vector::new([0.0, 1.0, 0.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[2] - 1.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[2] - 1.0).abs() < 1e-10);
     }
 
     #[test]
@@ -796,9 +806,9 @@ mod tests {
         let m = Matrix::<f64, 3, Isometry>::rotation_3d(angle, 1);
         let v = Vector::new([0.0, 0.0, 1.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - 1.0).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[2] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - 1.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[2] - 0.0).abs() < 1e-10);
     }
 
     // --- Rotation N-D (angle + two axes; panic if axis out of 0..N) --------------------------
@@ -822,9 +832,9 @@ mod tests {
         let m = Matrix::<f64, 3, Isometry>::rotation(angle, 0, 1);
         let v = Vector::new([1.0, 0.0, 0.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
-        assert!((rotated.coords()[2] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[2] - 0.0).abs() < 1e-10);
     }
 
     #[test]
@@ -833,10 +843,10 @@ mod tests {
         let m = Matrix::<f64, 4, Isometry>::rotation(angle, 0, 2);
         let v = Vector::new([0.0, 1.0, 0.0, 0.0]);
         let rotated = m * v;
-        assert_eq!(rotated.coords(), &[0.0, 1.0, 0.0, 0.0]);
+        assert_eq!(rotated.coords_ref(), &[0.0, 1.0, 0.0, 0.0]);
         let v = Vector::new([0.0, 0.0, 0.0, 1.0]);
         let rotated = m * v;
-        assert_eq!(rotated.coords(), &[0.0, 0.0, 0.0, 1.0]);
+        assert_eq!(rotated.coords_ref(), &[0.0, 0.0, 0.0, 1.0]);
     }
 
     #[test]
@@ -845,10 +855,10 @@ mod tests {
         let m = Matrix::<f64, 4, Isometry>::rotation(angle, 0, 1);
         let v = Vector::new([1.0, 0.0, 5.0, 10.0]);
         let rotated = m * v;
-        assert!((rotated.coords()[0] - 0.0).abs() < 1e-10);
-        assert!((rotated.coords()[1] - 1.0).abs() < 1e-10);
-        assert!((rotated.coords()[2] - 5.0).abs() < 1e-10);
-        assert!((rotated.coords()[3] - 10.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[2] - 5.0).abs() < 1e-10);
+        assert!((rotated.coords_ref()[3] - 10.0).abs() < 1e-10);
     }
 
     #[test]

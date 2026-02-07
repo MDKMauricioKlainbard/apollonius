@@ -18,8 +18,8 @@ use num_traits::Float;
 /// let max = Point::new([2.0, 2.0]);
 /// let aabb = AABB::new(min, max);
 ///
-/// assert_eq!(aabb.min().coords()[0], 0.0);
-/// assert_eq!(aabb.max().coords()[1], 2.0);
+/// assert_eq!(aabb.min_ref().coords_ref()[0], 0.0);
+/// assert_eq!(aabb.max_ref().coords_ref()[1], 2.0);
 /// ```
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -58,15 +58,33 @@ where
         Self { min, max }
     }
 
+    /// Returns the minimum point (by value).
+    #[inline]
+    pub fn min(&self) -> Point<T, N>
+    where
+        T: Copy,
+    {
+        self.min
+    }
+
+    /// Returns the maximum point (by value).
+    #[inline]
+    pub fn max(&self) -> Point<T, N>
+    where
+        T: Copy,
+    {
+        self.max
+    }
+
     /// Returns a reference to the minimum point.
     #[inline]
-    pub fn min(&self) -> &Point<T, N> {
+    pub fn min_ref(&self) -> &Point<T, N> {
         &self.min
     }
 
     /// Returns a reference to the maximum point.
     #[inline]
-    pub fn max(&self) -> &Point<T, N> {
+    pub fn max_ref(&self) -> &Point<T, N> {
         &self.max
     }
 
@@ -84,17 +102,17 @@ where
 
     /// Returns a mutable reference to the minimum point.
     ///
-    /// Useful for in-place updates (e.g. `aabb.min_mut().coords_mut()[0] = x`).
+    /// Useful for in-place updates (e.g. `aabb.min_ref_mut().coords_ref_mut()[0] = x`).
     #[inline]
-    pub fn min_mut(&mut self) -> &mut Point<T, N> {
+    pub fn min_ref_mut(&mut self) -> &mut Point<T, N> {
         &mut self.min
     }
 
     /// Returns a mutable reference to the maximum point.
     ///
-    /// Useful for in-place updates (e.g. `aabb.max_mut().coords_mut()[0] = x`).
+    /// Useful for in-place updates (e.g. `aabb.max_ref_mut().coords_ref_mut()[0] = x`).
     #[inline]
-    pub fn max_mut(&mut self) -> &mut Point<T, N> {
+    pub fn max_ref_mut(&mut self) -> &mut Point<T, N> {
         &mut self.max
     }
 
@@ -125,8 +143,8 @@ where
             // Hyper-rectangle overlap logic:
             // Two intervals [a, b] and [c, d] overlap if a < d and c < b.
             // We use the negation for early exit.
-            if self.max().coords()[i] <= other.min().coords()[i]
-                || other.max().coords()[i] <= self.min().coords()[i]
+            if self.max_ref().coords_ref()[i] <= other.min_ref().coords_ref()[i]
+                || other.max_ref().coords_ref()[i] <= self.min_ref().coords_ref()[i]
             {
                 return false;
             }
@@ -210,7 +228,7 @@ mod tests {
         let aabb = AABB::new(Point::new([0.0, 0.0]), Point::new([10.0, 10.0]));
         let json = serde_json::to_string(&aabb).unwrap();
         let restored: AABB<f64, 2> = serde_json::from_str(&json).unwrap();
-        assert_eq!(aabb.min(), restored.min());
-        assert_eq!(aabb.max(), restored.max());
+        assert_eq!(aabb.min_ref(), restored.min_ref());
+        assert_eq!(aabb.max_ref(), restored.max_ref());
     }
 }

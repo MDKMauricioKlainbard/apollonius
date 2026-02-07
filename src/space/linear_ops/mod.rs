@@ -5,6 +5,12 @@
 //! available for any matrix tag ([`General`](crate::algebra::matrix::General),
 //! [`Isometry`](crate::algebra::matrix::Isometry), [`Affine`](crate::algebra::matrix::Affine)).
 
+mod hypersphere;
+mod hyperplane;
+mod line;
+mod segment;
+mod triangle;
+
 use crate::algebra::matrix::MatrixTag;
 use crate::{Matrix, Point, Vector};
 use num_traits::Float;
@@ -32,7 +38,7 @@ where
         let coords = std::array::from_fn(|i| {
             let mut sum = T::zero();
             for j in 0..N {
-                sum = sum + self.data()[i][j] * rhs.coords()[j];
+                sum = sum + self.data_ref()[i][j] * rhs.coords_ref()[j];
             }
             sum
         });
@@ -51,7 +57,7 @@ where
 /// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
 /// let v = Vector::new([1.0, 1.0]);
 /// let w = m * v;
-/// assert_eq!(w.coords(), &[3.0, 7.0]);
+/// assert_eq!(w.coords_ref(), &[3.0, 7.0]);
 /// ```
 impl<T, const N: usize, Tag> Mul<Vector<T, N>> for Matrix<T, N, Tag>
 where
@@ -63,7 +69,7 @@ where
         let coords = std::array::from_fn(|i| {
             let mut sum = T::zero();
             for j in 0..N {
-                sum = sum + self.data()[i][j] * rhs.coords()[j];
+                sum = sum + self.data_ref()[i][j] * rhs.coords_ref()[j];
             }
             sum
         });
@@ -97,7 +103,7 @@ mod tests {
         let m = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
         let v = Vector::new([1.0, 0.0]);
         let out = m * v;
-        assert_eq!(out.coords(), &[1.0, 3.0]);
+        assert_eq!(out.coords_ref(), &[1.0, 3.0]);
     }
 
     #[test]
@@ -105,7 +111,7 @@ mod tests {
         let m = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
         let v = Vector::new([0.0, 1.0]);
         let out = m * v;
-        assert_eq!(out.coords(), &[2.0, 4.0]);
+        assert_eq!(out.coords_ref(), &[2.0, 4.0]);
     }
 
     #[test]
@@ -113,7 +119,7 @@ mod tests {
         let m = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
         let v = Vector::new([2.0, 1.0]);
         let out = m * v;
-        assert_eq!(out.coords(), &[4.0, 10.0]);
+        assert_eq!(out.coords_ref(), &[4.0, 10.0]);
     }
 
     #[test]
@@ -121,7 +127,7 @@ mod tests {
         let m = Matrix::<f64, 3, General>::new([[1.0, 0.0, 1.0], [0.0, 1.0, 1.0], [0.0, 0.0, 1.0]]);
         let v = Vector::new([1.0, 2.0, 3.0]);
         let out = m * v;
-        assert_eq!(out.coords(), &[4.0, 5.0, 3.0]);
+        assert_eq!(out.coords_ref(), &[4.0, 5.0, 3.0]);
     }
 
     // --- Matrix × Point -----------------------------------------------------
@@ -145,7 +151,7 @@ mod tests {
         let m = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
         let p = Point::new([1.0, 0.0]);
         let out = m * p;
-        assert_eq!(out.coords(), &[1.0, 3.0]);
+        assert_eq!(out.coords_ref(), &[1.0, 3.0]);
     }
 
     #[test]
@@ -153,7 +159,7 @@ mod tests {
         let m = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
         let p = Point::new([2.0, 1.0]);
         let out = m * p;
-        assert_eq!(out.coords(), &[4.0, 10.0]);
+        assert_eq!(out.coords_ref(), &[4.0, 10.0]);
     }
 
     #[test]
@@ -161,6 +167,6 @@ mod tests {
         let m = Matrix::<f64, 3, General>::new([[1.0, 0.0, 2.0], [0.0, 1.0, 3.0], [0.0, 0.0, 1.0]]);
         let p = Point::new([1.0, 2.0, 1.0]);
         let out = m * p;
-        assert_eq!(out.coords(), &[3.0, 5.0, 1.0]);
+        assert_eq!(out.coords_ref(), &[3.0, 5.0, 1.0]);
     }
 }

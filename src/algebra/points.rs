@@ -18,7 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// use apollonius::Point;
 ///
 /// let p = Point::new([1.0, 2.0, 3.0]);
-/// assert_eq!(p.coords(), &[1.0, 2.0, 3.0]);
+/// assert_eq!(p.coords_ref(), &[1.0, 2.0, 3.0]);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Point<T, const N: usize> {
@@ -103,11 +103,32 @@ where
     /// use apollonius::Point;
     ///
     /// let p = Point::new([1.0, 2.0, 3.0]);
-    /// assert_eq!(p.coords(), &[1.0, 2.0, 3.0]);
+    /// assert_eq!(p.coords_ref(), &[1.0, 2.0, 3.0]);
     /// ```
     #[inline]
     pub fn new(coords: [T; N]) -> Self {
         Self { coords }
+    }
+
+    /// Returns a copy of the coordinate array (field name = by value).
+    ///
+    /// Requires `T: Copy` (e.g. `f32`, `f64`).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Point;
+    ///
+    /// let p = Point::new([1.0, 2.0]);
+    /// let arr = p.coords();
+    /// assert_eq!(arr, [1.0, 2.0]);
+    /// ```
+    #[inline]
+    pub fn coords(&self) -> [T; N]
+    where
+        T: Copy,
+    {
+        self.coords
     }
 
     /// Returns a reference to the coordinate array.
@@ -118,12 +139,28 @@ where
     /// use apollonius::Point;
     ///
     /// let p = Point::new([1.0, 2.0]);
-    /// assert_eq!(p.coords()[0], 1.0);
-    /// assert_eq!(p.coords()[1], 2.0);
+    /// assert_eq!(p.coords_ref()[0], 1.0);
+    /// assert_eq!(p.coords_ref()[1], 2.0);
     /// ```
     #[inline]
-    pub fn coords(&self) -> &[T; N] {
+    pub fn coords_ref(&self) -> &[T; N] {
         &self.coords
+    }
+
+    /// Returns a mutable reference to the coordinate array.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use apollonius::Point;
+    ///
+    /// let mut p = Point::new([1.0, 2.0]);
+    /// p.coords_ref_mut()[0] += 1.0;
+    /// assert_eq!(p.coords_ref(), &[2.0, 2.0]);
+    /// ```
+    #[inline]
+    pub fn coords_ref_mut(&mut self) -> &mut [T; N] {
+        &mut self.coords
     }
 
     /// Sets the coordinate array.
@@ -135,30 +172,11 @@ where
     ///
     /// let mut p = Point::new([0.0, 0.0]);
     /// p.set_coords([3.0, 4.0]);
-    /// assert_eq!(p.coords(), &[3.0, 4.0]);
+    /// assert_eq!(p.coords_ref(), &[3.0, 4.0]);
     /// ```
     #[inline]
     pub fn set_coords(&mut self, coords: [T; N]) {
         self.coords = coords;
-    }
-
-    /// Returns a mutable reference to the coordinate array.
-    ///
-    /// Useful in simulations for in-place updates (e.g. `p.coords_mut()[0] += dt * v.coords()[0]`)
-    /// without copying.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::Point;
-    ///
-    /// let mut p = Point::new([1.0, 2.0]);
-    /// p.coords_mut()[0] += 1.0;
-    /// assert_eq!(p.coords(), &[2.0, 2.0]);
-    /// ```
-    #[inline]
-    pub fn coords_mut(&mut self) -> &mut [T; N] {
-        &mut self.coords
     }
 }
 
@@ -170,7 +188,7 @@ impl<T> From<(T, T)> for Point2D<T> {
     /// use apollonius::Point2D;
     ///
     /// let p = Point2D::from((1.0, 2.0));
-    /// assert_eq!(p.coords(), &[1.0, 2.0]);
+    /// assert_eq!(p.coords_ref(), &[1.0, 2.0]);
     /// ```
     #[inline]
     fn from(tuple: (T, T)) -> Self {
@@ -189,7 +207,7 @@ impl<T> From<(T, T, T)> for Point3D<T> {
     /// use apollonius::Point3D;
     ///
     /// let p = Point3D::from((1.0, 2.0, 3.0));
-    /// assert_eq!(p.coords(), &[1.0, 2.0, 3.0]);
+    /// assert_eq!(p.coords_ref(), &[1.0, 2.0, 3.0]);
     /// ```
     #[inline]
     fn from(tuple: (T, T, T)) -> Self {
@@ -213,12 +231,12 @@ where
     ///
     /// let v = Vector::new([1.0, 2.0, 3.0]);
     /// let p = Point::from(v);
-    /// assert_eq!(p.coords(), &[1.0, 2.0, 3.0]);
+    /// assert_eq!(p.coords_ref(), &[1.0, 2.0, 3.0]);
     /// ```
     #[inline]
     fn from(vector: Vector<T, N>) -> Self {
         Self {
-            coords: *vector.coords(),
+            coords: *vector.coords_ref(),
         }
     }
 }
@@ -242,7 +260,7 @@ where
     fn distance_squared(&self, other: &Self) -> T {
         self.coords
             .iter()
-            .zip(other.coords().iter())
+            .zip(other.coords_ref().iter())
             .map(|(a, b)| {
                 let diff = *a - *b;
                 diff * diff
@@ -287,10 +305,10 @@ where
     /// let p2 = Point::new([15.0, 25.0]);
     /// let v = p2 - p1;
     ///
-    /// assert_eq!(v.coords(), &[5.0, 5.0]);
+    /// assert_eq!(v.coords_ref(), &[5.0, 5.0]);
     /// ```
     fn sub(self, rhs: Self) -> Self::Output {
-        let coords = std::array::from_fn(|i| self.coords()[i] - rhs.coords()[i]);
+        let coords = std::array::from_fn(|i| self.coords_ref()[i] - rhs.coords_ref()[i]);
         Vector::new(coords)
     }
 }
@@ -311,10 +329,10 @@ where
     /// let v = Vector::new([3.0, 4.0]);
     /// let p_prime = p + v;
     ///
-    /// assert_eq!(p_prime.coords(), &[4.0, 6.0]);
+    /// assert_eq!(p_prime.coords_ref(), &[4.0, 6.0]);
     /// ```
     fn add(self, rhs: Vector<T, N>) -> Self::Output {
-        let coords = std::array::from_fn(|i| self.coords()[i] + rhs.coords()[i]);
+        let coords = std::array::from_fn(|i| self.coords_ref()[i] + rhs.coords_ref()[i]);
         Self { coords }
     }
 }
@@ -335,10 +353,10 @@ where
     /// let v = Vector::new([3.0, 4.0]);
     /// let p_prime = p - v;
     ///
-    /// assert_eq!(p_prime.coords(), &[-2.0, -2.0]);
+    /// assert_eq!(p_prime.coords_ref(), &[-2.0, -2.0]);
     /// ```
     fn sub(self, rhs: Vector<T, N>) -> Self::Output {
-        let coords = std::array::from_fn(|i| self.coords()[i] - rhs.coords()[i]);
+        let coords = std::array::from_fn(|i| self.coords_ref()[i] - rhs.coords_ref()[i]);
         Self { coords }
     }
 }
@@ -351,19 +369,19 @@ mod points_tests {
     #[test]
     fn test_construction_and_conversions() {
         let p_gen = Point::new([1.0, 2.0, 3.0]);
-        assert_eq!(p_gen.coords(), &[1.0, 2.0, 3.0]);
+        assert_eq!(p_gen.coords_ref(), &[1.0, 2.0, 3.0]);
 
         let p_from_arr = Point::new([1.5, 2.5]);
-        assert_eq!(p_from_arr.coords(), &[1.5, 2.5]);
+        assert_eq!(p_from_arr.coords_ref(), &[1.5, 2.5]);
 
         let p2d: Point2D<f32> = Point2D::from((1.0, 2.0));
-        assert_eq!(p2d.coords(), &[1.0, 2.0]);
+        assert_eq!(p2d.coords_ref(), &[1.0, 2.0]);
 
         let p3d: Point3D<f32> = Point3D::from((1.0, 2.0, 3.0));
-        assert_eq!(p3d.coords(), &[1.0, 2.0, 3.0]);
+        assert_eq!(p3d.coords_ref(), &[1.0, 2.0, 3.0]);
 
         let alias_2d: Point2D<f64> = Point::new([1.0, 2.0]);
-        assert_eq!(alias_2d.coords(), &[1.0, 2.0]);
+        assert_eq!(alias_2d.coords_ref(), &[1.0, 2.0]);
     }
 
     #[test]
@@ -393,7 +411,7 @@ mod points_tests {
         let p1 = Point::new([1.0, 2.0]);
         let p2 = p1;
 
-        assert_eq!(p1.coords(), p2.coords());
+        assert_eq!(p1.coords_ref(), p2.coords_ref());
 
         let p3 = Point::new([1.0, 2.0]);
         println!("{:?}", p3);
@@ -409,14 +427,14 @@ mod points_tests {
         let p2 = Point::new([15.0_f64, 25.0, 35.0]);
 
         let v: Vector<f64, 3> = p2 - p1;
-        assert_relative_eq!(v.coords()[0], 5.0);
-        assert_relative_eq!(v.coords()[1], 5.0);
-        assert_relative_eq!(v.coords()[2], 5.0);
+        assert_relative_eq!(v.coords_ref()[0], 5.0);
+        assert_relative_eq!(v.coords_ref()[1], 5.0);
+        assert_relative_eq!(v.coords_ref()[2], 5.0);
 
         let p3 = Point::new([1.0, 2.0]);
         let p4 = Point::new([4.0, 6.0]);
         let v2: Vector<f64, 2> = p4 - p3;
-        assert_eq!(v2.coords(), &[3.0, 4.0]);
+        assert_eq!(v2.coords_ref(), &[3.0, 4.0]);
     }
 }
 
