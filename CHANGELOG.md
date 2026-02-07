@@ -11,6 +11,31 @@ _No changes yet._
 
 ---
 
+## [0.1.0] - 2026-02-07
+
+This release introduces **matrices** and **affine transformations** as first-class citizens: type-tagged N×N matrices and a dedicated affine type that act on points, vectors, and all geometric primitives. The public API is unified via crate-root re-exports and a prelude.
+
+### Added
+
+- **Matrices (`Matrix<T, N, Tag>`):** N×N matrices with type-level tags for compile-time guarantees.
+  - **Tags:** `General` (arbitrary matrices; `new`, `set_data`, `set_component`), `Isometry` (rotations; preserve norms; `rotation`, `rotation_2d`, `rotation_3d`), `Affine` (identity and composition in affine context).
+  - **Traits:** `MatrixTag`, `IsAffine`, `IsIsometry` so you can constrain generic functions (e.g. “only isometries may act on this hypersphere”).
+  - **Arithmetic:** Identity, matrix×matrix, matrix×point, matrix×vector; addition and subtraction (result is `General`). Tag of product defined by `MulOutput` (e.g. Isometry×Isometry → Isometry).
+- **Affine transformations (`AffineTransform<T, N, Tag>`):** Linear part plus translation. Compose with `*`, apply to points and vectors; addition/subtraction for `General` tag. Act on all primitives (Line, Segment, Hypersphere, Hyperplane, Triangle) via `linear_ops`: transform × primitive (e.g. `matrix * line`, `affine * hypersphere`). Hypersphere requires `IsIsometry` so radius is preserved.
+- **Crate-root re-exports:** All main types and traits re-exported from the root: points, vectors, **Matrix and tags/traits**, Angle, primitives, **AffineTransform**, metric traits, utils. Single place to import from.
+- **Prelude:** `use apollonius::prelude::*` brings in the most used items (including matrices, tags, and metric traits) for quick scripting.
+- **Doc examples** in `algebra::matrix` and `space::linear_ops` now use crate re-exports so examples match recommended usage.
+
+### Changed
+
+- **Documentation:** Crate-level docs and README updated with matrices, tags, AffineTransform, linear_ops, prelude, and installation for 0.1.
+
+### Note
+
+- **Stable API:** The supported public API is what is re-exported from the crate root and from `prelude`. Paths into `algebra::`, `primitives::`, or `space::` may change in future minor versions.
+
+---
+
 ## [0.0.6-alpha] - 2026-02-01
 
 ### Added
@@ -91,7 +116,8 @@ _No changes yet._
 
 ---
 
-[Unreleased]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.6-alpha...HEAD
+[Unreleased]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.6-alpha...v0.1.0
 [0.0.6-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.5-alpha...v0.0.6-alpha
 [0.0.5-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.4-alpha...v0.0.5-alpha
 [0.0.4-alpha]: https://github.com/MDKMauricioKlainbard/apollonius/compare/v0.0.3-alpha...v0.0.4-alpha

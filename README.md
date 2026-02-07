@@ -1,6 +1,6 @@
 # Apollonius 🌌
 
-![Version](https://img.shields.io/badge/version-0.0.6--alpha-orange)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Rust](https://img.shields.io/badge/language-Rust-red)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
@@ -18,7 +18,7 @@ flowchart TB
             direction TB
             POINTS["points.rs<br/>Point, Point2D, Point3D<br/>MetricSquared, EuclideanMetric"]
             VECTORS["vectors.rs<br/>Vector, Vector2D, Vector3D<br/>VectorMetricSquared, EuclideanVector"]
-            MATRIX["matrix.rs<br/>Matrix (N×N)<br/>identity, +, −, ×, ×Vector, ×Point"]
+            MATRIX["matrix.rs<br/>Matrix<T,N,Tag> (General, Isometry, Affine)<br/>MatrixTag, IsAffine, IsIsometry"]
             ANGLE["angle.rs<br/>Angle<br/>radians, degrees, sin, cos, tan"]
             POINTS --> VECTORS
             VECTORS --> MATRIX
@@ -42,7 +42,7 @@ flowchart TB
         end
 
         subgraph SPACE["space"]
-            LINEAR["LinearMap (Rotation)"]
+            LINEAR["Matrix × Point/Vector<br/>linear_ops: × Line, Segment, Hypersphere, Hyperplane, Triangle"]
             AFFINE["AffineTransform (linear + translation)"]
             LINEAR --> AFFINE
         end
@@ -64,9 +64,9 @@ flowchart TB
     end
 ```
 
-- **Algebra:** All types use `T: Float` (num_traits). Points and vectors are the coordinate types; Matrix and Angle extend the toolbox.
+- **Algebra:** All types use `T: Float` (num_traits). Points and vectors are the coordinate types; **Matrix** (with type tags `General`, `Isometry`, `Affine` and traits `MatrixTag`, `IsAffine`, `IsIsometry`) and **Angle** extend the toolbox.
 - **Primitives:** Each shape implements `SpatialRelation` (and often `Bounded`). Intersections between them return `IntersectionResult<T, N>` (None, Tangent, Secant, Collinear, Single, HalfSpacePenetration).
-- **Space:** Affine transforms (rotation via Matrix, translation via Vector) for transforming points/vectors later.
+- **Space:** **AffineTransform** (linear part + translation); **linear_ops**: `Matrix × Point/Vector` and `Matrix` / `AffineTransform` × Line, Segment, Hypersphere, Hyperplane, Triangle. Isometry tag required for hypersphere (radius preserved).
 - **Utils:** `classify_to_zero` and `FloatSign` for robust float comparisons in primitives and algebra.
 
 ## ✨ Key Features
@@ -83,6 +83,8 @@ flowchart TB
     * **HalfSpacePenetration**(depth) for hypersphere–hyperplane penetration.
 * **Point-to-Point Intersections:** Line∩Line, Line∩Segment, Line∩Hypersphere, Line∩Hyperplane; Segment∩Segment, Segment∩Hypersphere, Segment∩Hyperplane, Segment∩Line; Hyperplane∩Line, Hyperplane∩Segment, Hyperplane∩Hypersphere; Hypersphere∩Line, Hypersphere∩Segment, Hypersphere∩Hyperplane.
 * **Numerical Stability:** Robust floating-point classification via `classify_to_zero` and `FloatSign` to handle accumulation errors.
+* **Type-safe matrices:** Tags `General`, `Isometry`, `Affine` and traits `MatrixTag`, `IsAffine`, `IsIsometry` so you can restrict functions to specific matrix kinds (e.g. only isometries acting on hyperspheres).
+* **Prelude and re-exports:** All main types and traits are re-exported at the crate root. Use `use apollonius::prelude::*` for one-shot imports (points, vectors, matrices, primitives, metric traits).
 
 ## 🛠 Technical Stack
 
@@ -96,7 +98,23 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-apollonius = "0.0.6-alpha"
+apollonius = "0.1"
+```
+
+Optional **serde** for serialization:
+
+```toml
+apollonius = { version = "0.1", features = ["serde"] }
+```
+
+**Importing:** Use the crate root or the prelude. All core types and traits are re-exported:
+
+```rust
+// Explicit imports from the crate root
+use apollonius::{Point, Vector, Matrix, General, Isometry, Affine, Line, Hypersphere};
+
+// Or bring in the most used items in one go (includes metric traits for distances/magnitudes)
+use apollonius::prelude::*;
 ```
 
 ## 📖 Quick Example: Line–Hypersphere Intersection
@@ -138,7 +156,7 @@ match sphere.intersect_hyperplane(&plane) {
 - [x] Point-result intersections: Line/Segment with Line, Segment, Hypersphere, Hyperplane; Hyperplane with Line, Segment, Hypersphere; Hypersphere with Line, Segment, Hyperplane.
 - [x] Hypersphere–Hyperplane: tangent contact, half-space penetration, `submerged_ratio`.
 - [x] Documentation and doc tests.
-- [ ] **v0.0.7:** Transformation matrices (affine: translation, scale, rotation; apply to Point/Vector).
+- [x] **v0.1.0:** Type-tagged matrices (General, Isometry, Affine), AffineTransform, linear_ops (Matrix/AffineTransform × Point, Vector, Line, Segment, Hypersphere, Hyperplane, Triangle). Prelude and crate-root re-exports.
 - [ ] GJK (Gilbert–Johnson–Keerthi) for narrow-phase.
 - [ ] Oriented Bounding Boxes (OBB).
 - [ ] Spatial partitioning (BVH / quadtree).

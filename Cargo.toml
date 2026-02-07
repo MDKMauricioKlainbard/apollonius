@@ -1,6 +1,6 @@
 [package]
 name = "apollonius"
-version = "0.0.6-alpha"
+version = "0.1.0"
 edition = "2024"
 description = "N-dimensional Euclidean geometry for Rust: points, vectors, lines, segments, hyperspheres, hyperplanes, AABBs, triangles, and a unified intersection API—all with const generics."
 readme = "README.md"
