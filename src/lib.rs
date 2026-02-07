@@ -19,10 +19,13 @@
 //! |-------------|----------------|
 //! | **Points**  | [`Point`], [`Point2D`], [`Point3D`], [`MetricSquared`], [`EuclideanMetric`] |
 //! | **Vectors** | [`Vector`], [`Vector2D`], [`Vector3D`], [`VectorMetricSquared`], [`EuclideanVector`] |
+//! | **Matrices** | [`Matrix`]`<T, N, Tag>`, tags [`General`], [`Isometry`], [`Affine`]; traits [`MatrixTag`], [`IsAffine`], [`IsIsometry`]; [`AffineTransform`] |
 //! | **Primitives** | [`Line`], [`Segment`], [`Hypersphere`] (Circle, Sphere), [`Hyperplane`], [`AABB`], [`Triangle`] |
 //! | **Traits**  | [`SpatialRelation`] (closest_point, distance_to_point, contains), [`Bounded`] (aabb) |
 //! | **Results** | [`IntersectionResult`] (None, Tangent, Secant, Collinear, Single, HalfSpacePenetration) |
 //! | **Utils**   | [`classify_to_zero`], [`FloatSign`] for robust float comparison |
+//!
+//! For one-shot imports of the most used types, use [`prelude`].
 //!
 //! ## Quick example
 //!
@@ -49,14 +52,47 @@ pub mod primitives;
 pub mod utils;
 pub mod space;
 
+// -----------------------------------------------------------------------------
+// Re-exports: algebra
+// -----------------------------------------------------------------------------
 pub use crate::algebra::{
+    angle::Angle,
+    matrix::{
+        Affine, General, Isometry, IsAffine, IsIsometry, Matrix, MatrixTag,
+    },
     points::{EuclideanMetric, MetricSquared, Point, Point2D, Point3D},
     vectors::{EuclideanVector, Vector, Vector2D, Vector3D, VectorMetricSquared},
-    matrix::Matrix, angle::Angle
 };
+// -----------------------------------------------------------------------------
+// Re-exports: primitives and space
+// -----------------------------------------------------------------------------
 pub use crate::primitives::{
-    Bounded, IntersectionResult, SpatialRelation, aabb::AABB, hyperplane::Hyperplane,
-    hypersphere::Circle, hypersphere::Hypersphere, hypersphere::Sphere, line::Line,
-    segment::Segment, triangle::Triangle,
+    aabb::AABB,
+    hyperplane::Hyperplane,
+    hypersphere::{Circle, Hypersphere, Sphere},
+    line::Line,
+    segment::Segment,
+    triangle::Triangle,
+    Bounded, IntersectionResult, SpatialRelation,
 };
-pub use crate::utils::{FloatSign, classify_to_zero};
+pub use crate::space::AffineTransform;
+pub use crate::utils::{classify_to_zero, FloatSign};
+
+// -----------------------------------------------------------------------------
+// Prelude
+// -----------------------------------------------------------------------------
+/// Prelude for convenient imports.
+///
+/// Use `use apollonius::prelude::*` to bring in the most common types and traits
+/// in one go: points, vectors (and their metric traits), matrices (and their
+/// tags/traits), primitives, and spatial traits. The metric traits
+/// ([`EuclideanMetric`], [`MetricSquared`], [`EuclideanVector`], [`VectorMetricSquared`])
+/// are required for distances, magnitudes, and related methods on [`Point`] and [`Vector`].
+pub mod prelude {
+    pub use crate::{
+        Affine, AffineTransform, Angle, AABB, Bounded, Circle, EuclideanMetric, EuclideanVector,
+        General, Hypersphere, IntersectionResult, IsAffine, Isometry, IsIsometry, Line, Matrix,
+        MatrixTag, MetricSquared, Point, Point2D, Point3D, Segment, SpatialRelation, Sphere,
+        Triangle, Vector, Vector2D, Vector3D, VectorMetricSquared, Hyperplane,
+    };
+}

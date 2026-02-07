@@ -27,8 +27,7 @@ use crate::{
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, Isometry};
-/// use apollonius::{Angle, Hyperplane, Point, Vector};
+/// use apollonius::{Angle, Hyperplane, Isometry, Matrix, Point, Vector};
 /// use std::f64::consts::FRAC_PI_2;
 ///
 /// let rot = Matrix::<f64, 2, Isometry>::rotation_2d(Angle::<f64>::from_radians(FRAC_PI_2));
@@ -59,9 +58,7 @@ where
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, Isometry};
-/// use apollonius::space::AffineTransform;
-/// use apollonius::{Hyperplane, Point, Vector};
+/// use apollonius::{AffineTransform, Hyperplane, Isometry, Matrix, Point, Vector};
 ///
 /// let tr = AffineTransform::new(
 ///     Matrix::<f64, 2, Isometry>::identity(),

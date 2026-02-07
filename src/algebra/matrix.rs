@@ -120,7 +120,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// General 2×2 matrix:
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, General};
+/// use apollonius::{General, Matrix};
 ///
 /// let m = Matrix::<_, 2, General>::new([[1.0, 0.0], [0.0, 1.0]]);
 /// assert_eq!(m.data_ref(), &[[1.0, 0.0], [0.0, 1.0]]);
@@ -129,8 +129,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// Matrix-vector product (works for any tag):
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, General};
-/// use apollonius::Vector;
+/// use apollonius::{General, Matrix, Vector};
 ///
 /// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
 /// let v = Vector::new([1.0, 0.0]);
@@ -141,8 +140,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// Identity matrix (available for any tag):
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, General};
-/// use apollonius::Point;
+/// use apollonius::{General, Matrix, Point};
 ///
 /// let m = Matrix::<f64, 2, General>::identity();
 /// let p = Point::new([2.0, 3.0]);
@@ -247,12 +245,12 @@ where
     /// Returns the N×N identity matrix (ones on the diagonal, zeros elsewhere).
     /// Available for any tag ([`General`], [`Isometry`], [`Affine`]).
     ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, General};
-    ///
-    /// let i = Matrix::<f64, 3, General>::identity();
+/// # Example
+///
+/// ```
+/// use apollonius::{General, Matrix};
+///
+/// let i = Matrix::<f64, 3, General>::identity();
     /// assert_eq!(i.data_ref()[0], [1.0, 0.0, 0.0]);
     /// assert_eq!(i.data_ref()[1], [0.0, 1.0, 0.0]);
     /// assert_eq!(i.data_ref()[2], [0.0, 0.0, 1.0]);
@@ -275,13 +273,13 @@ where
     /// Only available for [`General`] matrices; use [`rotation`](Matrix::rotation) or
     /// [`rotation_2d`](Matrix::rotation_2d) / [`rotation_3d`](Matrix::rotation_3d) for [`Isometry`].
     ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, General};
-    ///
-    /// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
-    /// assert_eq!(m.data_ref()[0], [1.0, 2.0]);
+/// # Example
+///
+/// ```
+/// use apollonius::{General, Matrix};
+///
+/// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
+/// assert_eq!(m.data_ref()[0], [1.0, 2.0]);
     /// assert_eq!(m.data_ref()[1], [3.0, 4.0]);
     /// ```
     #[inline]
@@ -294,13 +292,13 @@ where
 
     /// Replaces the inner row-major data array. Only available for [`General`] matrices.
     ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, General};
-    ///
-    /// let mut m = Matrix::<_, 2, General>::new([[0.0, 0.0], [0.0, 0.0]]);
-    /// m.set_data([[1.0, 0.0], [0.0, 1.0]]);
+/// # Example
+///
+/// ```
+/// use apollonius::{General, Matrix};
+///
+/// let mut m = Matrix::<_, 2, General>::new([[0.0, 0.0], [0.0, 0.0]]);
+/// m.set_data([[1.0, 0.0], [0.0, 1.0]]);
     /// assert_eq!(m.data_ref(), &[[1.0, 0.0], [0.0, 1.0]]);
     /// ```
     #[inline]
@@ -315,13 +313,13 @@ where
     ///
     /// Panics if `row` or `column` is not in `0..N`.
     ///
-    /// # Example
-    ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, General};
-    ///
-    /// let mut m = Matrix::<f64, 2, General>::identity();
-    /// m.set_component(0, 1, 5.0);
+/// # Example
+///
+/// ```
+/// use apollonius::{General, Matrix};
+///
+/// let mut m = Matrix::<f64, 2, General>::identity();
+/// m.set_component(0, 1, 5.0);
     /// m.set_component(1, 0, -3.0);
     /// assert_eq!(m.data_ref(), &[[1.0, 5.0], [-3.0, 1.0]]);
     /// ```
@@ -362,13 +360,12 @@ where
     ///
     /// 90° rotation in the plane of axes 0 and 1 (2D rotation in the first two coordinates):
     ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, Isometry};
-    /// use apollonius::{Angle, Vector};
-    /// use std::f64::consts::FRAC_PI_2;
-    ///
-    /// let angle = Angle::<f64>::from_radians(FRAC_PI_2);
-    /// let m = Matrix::<f64, 3, Isometry>::rotation(angle, 0, 1);
+/// ```
+/// use apollonius::{Angle, Isometry, Matrix, Vector};
+/// use std::f64::consts::FRAC_PI_2;
+///
+/// let angle = Angle::<f64>::from_radians(FRAC_PI_2);
+/// let m = Matrix::<f64, 3, Isometry>::rotation(angle, 0, 1);
     /// let v = Vector::new([1.0, 0.0, 0.0]);
     /// let rotated = m * v;
     /// assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
@@ -413,13 +410,12 @@ where
     ///
     /// Rotate the unit vector (1, 0) by 90° to get (0, 1):
     ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, Isometry};
-    /// use apollonius::{Angle, Vector};
-    /// use std::f64::consts::FRAC_PI_2;
-    ///
-    /// let angle = Angle::<f64>::from_radians(FRAC_PI_2);
-    /// let m = Matrix::<f64, 2, Isometry>::rotation_2d(angle);
+/// ```
+/// use apollonius::{Angle, Isometry, Matrix, Vector};
+/// use std::f64::consts::FRAC_PI_2;
+///
+/// let angle = Angle::<f64>::from_radians(FRAC_PI_2);
+/// let m = Matrix::<f64, 2, Isometry>::rotation_2d(angle);
     /// let v = Vector::new([1.0, 0.0]);
     /// let rotated = m * v;
     /// assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
@@ -445,13 +441,12 @@ where
     ///
     /// Rotate the vector (1, 0, 0) by 90° around the Z axis to get (0, 1, 0):
     ///
-    /// ```
-    /// use apollonius::algebra::matrix::{Matrix, Isometry};
-    /// use apollonius::{Angle, Vector};
-    /// use std::f64::consts::FRAC_PI_2;
-    ///
-    /// let angle = Angle::<f64>::from_radians(FRAC_PI_2);
-    /// let m = Matrix::<f64, 3, Isometry>::rotation_3d(angle, 2);
+/// ```
+/// use apollonius::{Angle, Isometry, Matrix, Vector};
+/// use std::f64::consts::FRAC_PI_2;
+///
+/// let angle = Angle::<f64>::from_radians(FRAC_PI_2);
+/// let m = Matrix::<f64, 3, Isometry>::rotation_3d(angle, 2);
     /// let v = Vector::new([1.0, 0.0, 0.0]);
     /// let rotated = m * v;
     /// assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
@@ -477,7 +472,7 @@ where
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, General};
+/// use apollonius::{General, Matrix};
 ///
 /// let a = Matrix::<_, 2, General>::new([[1.0, 0.0], [0.0, 1.0]]);
 /// let b = Matrix::<_, 2, General>::new([[0.0, 1.0], [1.0, 0.0]]);
@@ -506,7 +501,7 @@ where
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, General};
+/// use apollonius::{General, Matrix};
 ///
 /// let a = Matrix::<_, 2, General>::new([[2.0, 1.0], [1.0, 2.0]]);
 /// let b = Matrix::<_, 2, General>::new([[1.0, 0.0], [0.0, 1.0]]);
@@ -535,7 +530,7 @@ where
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, General};
+/// use apollonius::{General, Matrix};
 ///
 /// let a = Matrix::<f64, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
 /// let b = Matrix::<f64, 2, General>::new([[5.0, 6.0], [7.0, 8.0]]);

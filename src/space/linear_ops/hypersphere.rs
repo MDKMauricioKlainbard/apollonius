@@ -21,8 +21,7 @@ use crate::{Hypersphere, Matrix, Vector, algebra::matrix::IsIsometry, space::Aff
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, Isometry};
-/// use apollonius::{Angle, Hypersphere, Point};
+/// use apollonius::{Angle, Hypersphere, Isometry, Matrix, Point};
 ///
 /// let rot = Matrix::<f64, 2, Isometry>::rotation_2d(Angle::<f64>::from_radians(std::f64::consts::FRAC_PI_2));
 /// let circle = Hypersphere::new(Point::new([1.0, 0.0]), 2.0);
@@ -74,9 +73,7 @@ where
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::{Matrix, Isometry};
-/// use apollonius::space::AffineTransform;
-/// use apollonius::{Hypersphere, Point, Vector};
+/// use apollonius::{AffineTransform, Hypersphere, Isometry, Matrix, Point, Vector};
 ///
 /// let linear = Matrix::<f64, 2, Isometry>::identity();
 /// let tr = AffineTransform::new(linear, Vector::new([1.0, 2.0]));

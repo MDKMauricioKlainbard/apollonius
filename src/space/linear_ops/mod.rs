@@ -21,8 +21,7 @@ use std::ops::Mul;
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::General;
-/// use apollonius::{Matrix, Point};
+/// use apollonius::{General, Matrix, Point};
 ///
 /// let m = Matrix::<f64, 2, General>::identity();
 /// let p = Point::new([5.0, 10.0]);
@@ -51,8 +50,7 @@ where
 /// # Example
 ///
 /// ```
-/// use apollonius::algebra::matrix::General;
-/// use apollonius::{Matrix, Vector};
+/// use apollonius::{General, Matrix, Vector};
 ///
 /// let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
 /// let v = Vector::new([1.0, 1.0]);
