@@ -132,6 +132,88 @@ match line.intersect_hypersphere(&sphere) {
 }
 ```
 
+## 📖 Matrices and affine transforms
+
+Matrices are type-tagged: **General** (any N×N), **Isometry** (rotations; preserve distances), **Affine** (used in affine context). You can multiply them by points, vectors, and by primitives (Line, Segment, Hypersphere, Hyperplane, Triangle). **AffineTransform** = linear part + translation.
+
+### Matrix × Point and Matrix × Vector
+
+```rust
+use apollonius::{General, Matrix, Point, Vector};
+
+// Identity leaves point and vector unchanged
+let id = Matrix::<f64, 2, General>::identity();
+let p = Point::new([3.0, 4.0]);
+let v = Vector::new([1.0, 0.0]);
+assert_eq!(id * p, p);
+assert_eq!(id * v, v);
+
+// General 2×2 matrix: row-major construction
+let m = Matrix::<_, 2, General>::new([[1.0, 2.0], [3.0, 4.0]]);
+let out = m * Vector::new([1.0, 1.0]);
+assert_eq!(out.coords_ref(), &[3.0, 7.0]);
+```
+
+### 2D rotation (Isometry)
+
+```rust
+use apollonius::{Angle, Isometry, Matrix, Point, Vector};
+use std::f64::consts::FRAC_PI_2;
+
+// Rotate 90° counterclockwise in the plane
+let rot = Matrix::<f64, 2, Isometry>::rotation_2d(Angle::<f64>::from_radians(FRAC_PI_2));
+let v = Vector::new([1.0, 0.0]);
+let rotated = rot * v;
+// (1, 0) → (0, 1)
+assert!((rotated.coords_ref()[0] - 0.0).abs() < 1e-10);
+assert!((rotated.coords_ref()[1] - 1.0).abs() < 1e-10);
+```
+
+### AffineTransform: translate and rotate
+
+```rust
+use apollonius::{AffineTransform, Angle, Isometry, Line, Matrix, Point, Vector};
+
+let linear = Matrix::<f64, 2, Isometry>::rotation_2d(Angle::<f64>::from_radians(std::f64::consts::FRAC_PI_2));
+let translation = Vector::new([10.0, 0.0]);
+let tr = AffineTransform::new(linear, translation);
+
+let line = Line::new(Point::new([0.0, 0.0]), Vector::new([1.0, 0.0]));
+let transformed = tr * line;
+// Origin and direction are transformed; direction is re-normalized
+println!("New origin: {:?}", transformed.origin());
+```
+
+### Matrix × Hypersphere (isometries preserve radius)
+
+Only **isometric** matrices (and affine transforms with isometric linear part) can act on hyperspheres, so the radius is preserved:
+
+```rust
+use apollonius::{Angle, Hypersphere, Isometry, Matrix, Point};
+
+let rot = Matrix::<f64, 2, Isometry>::rotation_2d(Angle::<f64>::from_radians(1.0));
+let circle = Hypersphere::new(Point::new([1.0, 0.0]), 5.0);
+let rotated_circle = rot * circle;
+assert_eq!(rotated_circle.radius(), 5.0);  // unchanged
+// Center is rotated: rot * circle.center()
+```
+
+### Constraining functions by matrix kind
+
+Use the traits `MatrixTag`, `IsAffine`, or `IsIsometry` to restrict generic functions. The type system ensures only isometries act on hyperspheres (radius is preserved):
+
+```rust
+use apollonius::{Hypersphere, IsIsometry, Matrix};
+
+/// Only matrices with tag implementing IsIsometry (e.g. Isometry) are accepted.
+fn rotate_sphere<const N: usize, Tag>(rot: Matrix<f64, N, Tag>, sphere: Hypersphere<f64, N>) -> Hypersphere<f64, N>
+where
+    Tag: IsIsometry,
+{
+    rot * sphere
+}
+```
+
 ## 📖 Example: Hypersphere–Hyperplane (Tangent vs Penetration)
 
 ```rust
@@ -146,6 +228,23 @@ match sphere.intersect_hyperplane(&plane) {
     IntersectionResult::None => println!("No contact"),
     _ => {}
 }
+```
+
+## 📖 Example: Segment, AABB, and closest point
+
+```rust
+use apollonius::prelude::*;
+
+let seg = Segment::new(Point::new([0.0, 0.0]), Point::new([2.0, 0.0]));
+let aabb = seg.aabb();
+assert_eq!(aabb.min_ref(), &[0.0, 0.0]);
+assert_eq!(aabb.max_ref(), &[2.0, 0.0]);
+
+let query = Point::new([1.0, 3.0]);
+let closest = seg.closest_point(&query);
+assert_eq!(closest.coords_ref(), &[1.0, 0.0]);  // foot on segment
+let dist_sq = seg.distance_to_point_squared(&query);
+assert!((dist_sq - 9.0).abs() < 1e-10);
 ```
 
 ## 🛰 Roadmap
